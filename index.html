@@ -9,6 +9,23 @@
 <script>
     function sketchProc(processing) {
         var engine = window.Engine.initialize(processing)
+
+        var conn = new WebSocket("ws://" + document.location.host + "/ws");
+        conn.onclose = function (evt) {
+            engine.onSocketClose(evt)
+        };
+        conn.onmessage = function (evt) {
+            engine.onSocketMessage(evt)
+        }
+        var client = function(message) {
+            if (!conn) {
+                return false;
+            }
+
+            conn.send(message)
+        }
+        engine.setClient(conn)
+
         processing.draw = function() {
             engine.update()
         }

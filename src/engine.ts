@@ -5,12 +5,18 @@ import Entity from './entity'
 import Robot from './robot'
 import TilesContainer from './tilescontainer'
 
+interface Client {
+    send(value: string): void
+}
+
 export default class Engine {
     tilesContainer: TilesContainer
     score: number
     bombs: string[]
     player: Robot
     processing: any
+    private client: Client
+    sessionID: string
 
     constructor(tilesContainer: TilesContainer, processing: any) {
         this.tilesContainer = tilesContainer;
@@ -133,6 +139,8 @@ export default class Engine {
         let mouseY = this.processing.mouseY
         let man = this.player;
         man.setTarget(mouseX, mouseY);
+
+        this.client.send(`M:${this.sessionID}:${mouseX}:${mouseY}`)
     }
 
     update() {
@@ -164,6 +172,26 @@ export default class Engine {
         this.processing.text(this.bombs.join(""), this.processing.width - 100, 30);
     }
 
+    onSocketClose(evt: any) {
+        console.log("Close!", evt)
+    }
+
+    onSocketMessage(evt: any) {
+        let opCode, data
+        [opCode, ...data] = evt.data.split(":")
+
+        switch(opCode) {
+            case 'ID': this.handleID(data); break;
+            case 'M': this.handleMove(data); break;
+            default:
+                break;
+        }
+    }
+
+    setClient(client: Client) {
+        this.client = client
+    }
+
     static initialize(processing: any) {
         let w  = window,
             d  = w.document,
@@ -185,5 +213,19 @@ export default class Engine {
 
         engine.restart()
         return engine
+    }
+
+    private handleID(data: string[]) {
+        console.log("Got ID: " + data[0])
+        this.sessionID = data[0]
+    }
+
+    private handleMove(data: string[]) {
+        let sessionID, x, y
+        [ sessionID, x, y ] = data
+        console.log("session", sessionID, "x", x, "y", y)
+        let man = this.player;
+        man.setTarget(parseInt(x), parseInt(y));
+
     }
 }

@@ -13,7 +13,7 @@ type Hub struct {
 	engine *Engine
 
 	// Registered clients.
-	clients map[*Client]bool
+	clients map[*Client]int64
 
 	// Inbound messages from the clients.
 	broadcast chan []byte
@@ -31,7 +31,7 @@ func newHub(engine *Engine) *Hub {
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
+		clients:    make(map[*Client]int64),
 	}
 }
 
@@ -39,12 +39,14 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
-			h.clients[client] = true
 			playerID := h.engine.NewPlayer()
+			h.clients[client] = playerID
 			msg := "ID:" + strconv.FormatInt(playerID, 10)
 			client.send <- []byte(msg)
 		case client := <-h.unregister:
 			if _, ok := h.clients[client]; ok {
+				playerID := h.clients[client]
+				h.engine.RemovePlayer(playerID)
 				delete(h.clients, client)
 				close(client.send)
 			}

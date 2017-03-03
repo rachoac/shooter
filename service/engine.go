@@ -12,6 +12,7 @@ type Engine struct {
 
 	ObjectContainer *ObjectContainer
 	Running bool
+	Tick int64
 }
 
 func NewEngine(
@@ -43,6 +44,16 @@ func (e *Engine) NewPlayer() int64 {
 	return player.ID
 }
 
+func (e *Engine) RemovePlayer(playerID int64) {
+	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
+	for _, zombie := range zombies {
+		if zombie.TargetObjectID == playerID {
+			zombie.TargetObjectID = 0
+		}
+	}
+	e.ObjectContainer.DeleteObjectByID(playerID)
+}
+
 func (e *Engine) CreateTree(x int64, y int64) *Object {
 	tree := e.ObjectContainer.CreateBlankObject()
 	tree.Code = "T"
@@ -68,21 +79,78 @@ func (e *Engine) TickleZombies() {
 	players := e.ObjectContainer.GetObjectsByType("Player")
 
 	for _, zombie := range zombies {
+		if len(players) < 1 {
+			zombie.TargetObjectID = 0
+			continue
+		}
+		// each zombie should evaluate who the closest
+		// player is, and make that one their target
+		var closest *Object
+		closestDistance := float64(-1)
+		for _, player := range players {
+			var distance float64
+			if closest != nil {
+				distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+			}
+			if closest == nil || distance < closestDistance {
+				closest = player
+				closestDistance = distance
+			}
+		}
 
+		if closest != nil {
+			zombie.TargetObjectID = closest.ID
+		} else {
+			continue
+		}
+
+		// move the zombie one click closer to their target
+		if zombie.X < closest.X {
+			zombie.X += 1
+		}
+		if zombie.Y < closest.Y {
+			zombie.Y += 1
+		}
+		if zombie.X > closest.X {
+			zombie.X -= 1
+		}
+		if zombie.Y > closest.Y {
+			zombie.Y -= 1
+		}
+	}
+
+}
+
+func (e *Engine) logState() {
+	log.Info("--------------------------------")
+	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
+	for _, zombie := range zombies {
+		log.Info("zombie ", zombie.ID, " [", zombie.X, ", ", zombie.Y, "]; targetID: ", zombie.TargetObjectID)
 	}
 }
 
 func (e *Engine) MainLoop() {
 	for e.Running {
+		e.Tick += 1
+
+		// wrap back around
+		if e.Tick > 9223372036854775805 {
+			e.Tick = 0
+		}
 
 		e.TickleZombies()
 
+		if e.Tick % 60 == 0 {
+			e.logState()
+		}
+
 		// sleep for an interval
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(30 * time.Millisecond)
 	}
 }
 
 func (e *Engine) Initialize() {
+	log.Info("Initializing engine")
 	var i int64
 	for i = 0; i < e.TreeCount; i++ {
 		tree := e.CreateTree(
@@ -102,6 +170,7 @@ func (e *Engine) Initialize() {
 
 	e.Running = true
 	go e.MainLoop()
+	log.Info("Engine running")
 }
 
 func (e *Engine) Stop() {

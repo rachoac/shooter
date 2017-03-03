@@ -6,6 +6,10 @@ type Object struct {
 	Y int64
 	Type string
 	Code string
+
+	TargetX int64
+	TargetY int64
+	TargetObjectID int64
 }
 
 type ObjectContainer struct {

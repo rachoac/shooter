@@ -322,8 +322,18 @@ func (e *Engine) MainLoop() {
 		e.TickleBullets()
 		e.TicklePlayers()
 
+		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 		if e.Tick % 60 == 0 {
 			//e.logState()
+			log.Info("Zombie count ", len(zombies))
+		}
+
+		if (len(zombies) < 1) {
+			// randomly spawn 2 more
+			if RandomBool() {
+				e.broadcastObject(e.spawnZombie())
+				e.broadcastObject(e.spawnZombie())
+			}
 		}
 
 		// sleep for an interval
@@ -423,9 +433,11 @@ func (e *Engine) spawnZombie() *Object {
 		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
 		e.RemoveAndBroadcast(zombie)
 
-		// spawn 2 more
-		e.broadcastObject(e.spawnZombie())
-		e.broadcastObject(e.spawnZombie())
+		if RandomBool() {
+			// spawn 2 more
+			e.broadcastObject(e.spawnZombie())
+			e.broadcastObject(e.spawnZombie())
+		}
 	}
 	e.ObjectContainer.WriteObject(zombie)
 	return zombie

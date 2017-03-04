@@ -150,6 +150,9 @@ func (oc *ObjectContainer) GetObjectsByType(objectType string) (map[int64]*Objec
 func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *Object {
 	targetObjectBounds := targetObject.GetBounds()
 	for _, other := range oc.ObjectsByID {
+		if other == nil || targetObject == nil {
+			continue
+		}
 		if other.ID == targetObject.ID {
 			continue
 		}

@@ -4,6 +4,7 @@ type Object struct {
 	ID int64
 	X int64
 	Y int64
+	Height int64
 	Type string
 	Code string
 

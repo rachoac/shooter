@@ -87,7 +87,7 @@ abstract class Entity extends Tile {
             this.onCollision(collidedTile)
             return
         }
-        this.setPosition(newX, newY)
+        this.engine.updatePosition(this, newX, newY)
 
         return true
     }

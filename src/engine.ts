@@ -17,7 +17,7 @@ export default class Engine {
     player: Robot
     processing: any
     private client: Client
-    sessionID: string
+    sessionID: number
 
     constructor(tilesContainer: TilesContainer, processing: any) {
         this.tilesContainer = tilesContainer;
@@ -32,9 +32,15 @@ export default class Engine {
     createPlayer() {
         let man = new Robot(this.processing, this, new Color(238, 255, 0, 255), 103, 3);
         man.setRole("player");
-        this.tilesContainer.addTile(man);
-        this.player = man;
         return man;
+    }
+
+    updatePosition(entity: Entity, newX: number, newY: number) {
+        if (this.player && entity.id === this.player.id) {
+            this.client.send(`P:${this.sessionID}:${newX}:${newY}`)
+        } else {
+            entity.setPosition(newX, newY)
+        }
     }
 
     spawnZombie(speed: number) {
@@ -45,31 +51,12 @@ export default class Engine {
             robot.setPosition( this.processing.random(0, 1) > 0.5 ? -70 : this.processing.width+70, this.processing.random(0, this.processing.height) );
         }
         robot.setRole("zombie");
-        robot.setTargetEntity(this.player);
+        // robot.setTargetEntity(this.player);
         this.tilesContainer.addTile(robot);
     }
 
     restart() {
-        let processing = this.processing
-        let robotCount = 0;
-        let treeCount = 0;
-
         this.tilesContainer.restart()
-
-        let man = this.createPlayer();
-        man.setPosition(100, 100);
-
-        // starting zombies
-        for ( let i = 0; i < robotCount; i++ ) {
-            this.spawnZombie(processing.random(0.1, 0.5));
-        }
-
-        // starting trees
-        for ( let i = 0; i < treeCount; i++ ) {
-            let tree = new Tree(processing, new Color(0, processing.random(100, 200), 0, 255), processing.random(50, 103));
-            this.tilesContainer.addTile(tree);
-            tree.setPosition(processing.random(0, processing.width), processing.random(0, processing.height));
-        }
     }
 
     killedZombie(zombie:Entity) {
@@ -114,34 +101,34 @@ export default class Engine {
             x += speed;
         }
 
-        let bulletSpeed = 8;
+        // let bulletSpeed = 8;
 
-        if (keyCode === 87) {
-            man.fireBullet(bulletSpeed, 0, -30, 0, -300);
-        }
-        if (keyCode === 83) {
-            man.fireBullet(bulletSpeed, 0, 10, 0, 300);
-        }
-        if (keyCode === 65) {
-            man.fireBullet(bulletSpeed, 0, -30, -300, -30);
-        }
-        if (keyCode === 68) {
-            man.fireBullet(bulletSpeed, 0, -30, 300, -30);
-        }
+        // if (keyCode === 87) {
+        //     man.fireBullet(bulletSpeed, 0, -30, 0, -300);
+        // }
+        // if (keyCode === 83) {
+        //     man.fireBullet(bulletSpeed, 0, 10, 0, 300);
+        // }
+        // if (keyCode === 65) {
+        //     man.fireBullet(bulletSpeed, 0, -30, -300, -30);
+        // }
+        // if (keyCode === 68) {
+        //     man.fireBullet(bulletSpeed, 0, -30, 300, -30);
+        // }
 
         if (keyCode === 32) {
             this.bombs.shift();
         }
-        man.setTarget(x, y);
+        // man.setTarget(x, y);
     }
 
     mouseMovedHandling() {
         let mouseX = this.processing.mouseX
         let mouseY = this.processing.mouseY
-        let man = this.player;
-        man.setTarget(mouseX, mouseY);
-
-        this.client.send(`P:${this.sessionID}:${mouseX}:${mouseY}`)
+        let man = this.player
+        if (man) {
+            man.setTarget(mouseX, mouseY);
+        }
     }
 
     update() {
@@ -222,25 +209,25 @@ export default class Engine {
 
     private handleID(data: string[]) {
         console.log("Got ID: " + data[0])
-        this.sessionID = data[0]
+        this.sessionID = parseInt(data[0])
     }
 
     private handleMove(data: string[]) {
         let objectID, x, y
         [ objectID, x, y ] = data
-        console.log("move", objectID, "x", x, "y", y)
 
         let obj = this.tilesContainer.getTileByID(parseInt(objectID))
-        obj.setPosition(parseInt(x), parseInt(y));
+        if (obj) {
+            obj.setPosition(parseInt(x), parseInt(y));
+        }
     }
     private handleNewObject(data: string[]) {
-        let objectID, objectType, x, y
-        [ objectID, objectType, x, y ] = data
+        const [ objectID, objectType, x, y, height ]: string[] = data
         let processing = this.processing
         switch(objectType) {
             case 'T': {
                 console.log("MAKING TREE ", x, y, "id:", objectID)
-                let tree = new Tree(processing, new Color(0, processing.random(100, 200), 0, 255), processing.random(50, 103));
+                let tree = new Tree(processing, new Color(0, processing.random(100, 200), 0, 255), parseInt(height));
                 tree.id = parseInt(objectID)
                 this.tilesContainer.addTile(tree);
                 tree.setPosition(parseInt(x), parseInt(y));
@@ -254,6 +241,24 @@ export default class Engine {
                 robot.setPosition(parseInt(x), parseInt(y));
                 robot.setRole("avatar");
                 this.tilesContainer.addTile(robot);
+                break;
+            }
+            case 'P': {
+                console.log("MAKING PLAYER ", x, y, "id:", objectID)
+                let objectIdInt = parseInt(objectID)
+                if (objectIdInt === this.sessionID) {
+                    let player = this.createPlayer()
+                    player.id = objectIdInt
+                    player.setPosition(parseInt(x), parseInt(y));
+                    this.tilesContainer.addTile(player);
+                    this.player = player;
+                } else {
+                    let robot = new Avatar( this.processing, new Color(238, 255, 0, 255), 103);
+                    robot.id = parseInt(objectID)
+                    robot.setPosition(parseInt(x), parseInt(y));
+                    robot.setRole("avatar");
+                    this.tilesContainer.addTile(robot);
+                }
                 break;
             }
             default:

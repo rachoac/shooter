@@ -2,7 +2,7 @@ package main
 
 import (
 	"time"
-
+	"strings"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -55,18 +55,21 @@ func (e *Engine) NewPlayer() int64 {
 }
 
 func (e *Engine) to(object *Object) string {
-	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y)
+	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height)
 }
 
 func (e *Engine) sendWorld(playerID int64) {
-	player := e.ObjectContainer.GetObject(playerID)
-	trees := e.ObjectContainer.GetObjectsByType("Tree")
-	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
-	for _, tree := range trees {
-		e.hub.send(player.ID, []byte(e.to(tree)))
+	for _, object := range e.ObjectContainer.ObjectsByID {
+		e.hub.send(playerID, []byte(e.to(object)))
 	}
-	for _, zombie := range zombies {
-		e.hub.send(player.ID, []byte(e.to(zombie)))
+
+	newPlayer := e.ObjectContainer.GetObject(playerID)
+
+	// annouce new player to other players
+	for _, player := range e.ObjectContainer.GetObjectsByType("Player") {
+		if player.ID != playerID {
+			e.hub.send(player.ID, []byte(e.to(newPlayer)))
+		}
 	}
 }
 
@@ -91,6 +94,7 @@ func (e *Engine) CreateTree(x int64, y int64) *Object {
 	tree.Type = "Tree"
 	tree.X = x
 	tree.Y = y
+	tree.Height = RandomNumber(50, 103)
 
 	return tree
 }
@@ -182,11 +186,37 @@ func (e *Engine) MainLoop() {
 	}
 }
 
+func (e *Engine) parseEvent(event string) {
+	parts := strings.Split(event, ":")
+	command := parts[0]
+
+	switch command {
+	case "P": {
+		playerID :=  StringToInt64(parts[1])
+		x :=  StringToInt64(parts[2])
+		y :=  StringToInt64(parts[3])
+		object := e.ObjectContainer.GetObject(playerID)
+
+		if object != nil {
+			object.X = x
+			object.Y = y
+		}
+
+		e.broadcastMove(object)
+
+	}
+		default:
+		// nothing
+	}
+}
+
 func (e *Engine) ListenToEvents() {
 	// forever listen
 	for e.Running {
 		event := <- e.eventStream
-		log.Info("Received [", string(event), "]")
+		eventStr := string(event)
+		//log.Info("Received [", eventStr, "]")
+		e.parseEvent(eventStr)
 	}
 }
 

@@ -13,8 +13,6 @@ export default class Avatar extends Tile {
         this.height = height
     }
 
-    update() {}
-
     render() {
         let height = this.height
         let color = this.color
@@ -46,5 +44,9 @@ export default class Avatar extends Tile {
         this.lastBounds.recompute()
 
         return this.lastBounds
+    }
+
+    update() {
+        return true
     }
 }

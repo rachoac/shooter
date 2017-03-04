@@ -113,7 +113,7 @@ abstract class Entity extends Tile {
     abstract onTargetMet(): void
 
     onCollision(collidedTile: Tile) {
-        console.log(collidedTile)
+        if(collidedTile){}
     }
 }
 

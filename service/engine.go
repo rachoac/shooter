@@ -1,9 +1,11 @@
 package main
 
 import (
-	log "github.com/Sirupsen/logrus"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
+
 type Engine struct {
 	Width int64
 	Height int64
@@ -13,6 +15,10 @@ type Engine struct {
 	ObjectContainer *ObjectContainer
 	Running bool
 	Tick int64
+
+	eventStream chan []byte
+
+	hub *Hub
 }
 
 func NewEngine(
@@ -25,6 +31,10 @@ func NewEngine(
 	engine := Engine{Width: width, Height: height, TreeCount: treeCount, ZombieCount: zombieCount, ObjectContainer: container}
 
 	return &engine
+}
+
+func (e *Engine) SetHub(hub *Hub) {
+	e.hub = hub
 }
 
 func (e *Engine) NewPlayer() int64 {
@@ -42,6 +52,27 @@ func (e *Engine) NewPlayer() int64 {
 	log.Info("New player created, id ", player.ID)
 
 	return player.ID
+}
+
+func (e *Engine) to(object *Object) string {
+	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y)
+}
+
+func (e *Engine) sendWorld(playerID int64) {
+	player := e.ObjectContainer.GetObject(playerID)
+	trees := e.ObjectContainer.GetObjectsByType("Tree")
+	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
+	for _, tree := range trees {
+		e.hub.send(player.ID, []byte(e.to(tree)))
+	}
+	for _, zombie := range zombies {
+		e.hub.send(player.ID, []byte(e.to(zombie)))
+	}
+}
+
+func (e *Engine) broadcastMove(object *Object) {
+	message := "M:" + Int64ToString(object.ID) + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y)
+	e.hub.sendToAll([]byte(message))
 }
 
 func (e *Engine) RemovePlayer(playerID int64) {
@@ -117,6 +148,8 @@ func (e *Engine) TickleZombies() {
 		if zombie.Y > closest.Y {
 			zombie.Y -= 1
 		}
+
+		e.broadcastMove(zombie)
 	}
 
 }
@@ -141,7 +174,7 @@ func (e *Engine) MainLoop() {
 		e.TickleZombies()
 
 		if e.Tick % 60 == 0 {
-			e.logState()
+			//e.logState()
 		}
 
 		// sleep for an interval
@@ -149,8 +182,17 @@ func (e *Engine) MainLoop() {
 	}
 }
 
+func (e *Engine) ListenToEvents() {
+	// forever listen
+	for e.Running {
+		event := <- e.eventStream
+		log.Info("Received [", string(event), "]")
+	}
+}
+
 func (e *Engine) Initialize() {
 	log.Info("Initializing engine")
+	e.eventStream = make(chan []byte)
 	var i int64
 	for i = 0; i < e.TreeCount; i++ {
 		tree := e.CreateTree(
@@ -170,6 +212,7 @@ func (e *Engine) Initialize() {
 
 	e.Running = true
 	go e.MainLoop()
+	go e.ListenToEvents()
 	log.Info("Engine running")
 }
 

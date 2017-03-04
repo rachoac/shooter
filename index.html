@@ -17,13 +17,6 @@
         conn.onmessage = function (evt) {
             engine.onSocketMessage(evt)
         }
-        var client = function(message) {
-            if (!conn) {
-                return false;
-            }
-
-            conn.send(message)
-        }
         engine.setClient(conn)
 
         processing.draw = function() {

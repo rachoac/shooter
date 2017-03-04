@@ -25,10 +25,11 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	engine := NewEngine(500, 500, 50, 10)
-	hub := newHub(engine)
-	go hub.run()
+	engine := NewEngine(500, 500, 50, 5)
 	engine.Initialize()
+	hub := newHub(engine)
+	engine.SetHub(hub)
+	go hub.run()
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)

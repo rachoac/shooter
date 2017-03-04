@@ -3,6 +3,7 @@ import Tile from './tile'
 import Tree from './tree'
 import Entity from './entity'
 import Robot from './robot'
+import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
 
 interface Client {
@@ -50,8 +51,8 @@ export default class Engine {
 
     restart() {
         let processing = this.processing
-        let robotCount = 6;
-        let treeCount = 23;
+        let robotCount = 0;
+        let treeCount = 0;
 
         this.tilesContainer.restart()
 
@@ -140,7 +141,7 @@ export default class Engine {
         let man = this.player;
         man.setTarget(mouseX, mouseY);
 
-        this.client.send(`M:${this.sessionID}:${mouseX}:${mouseY}`)
+        this.client.send(`P:${this.sessionID}:${mouseX}:${mouseY}`)
     }
 
     update() {
@@ -177,15 +178,19 @@ export default class Engine {
     }
 
     onSocketMessage(evt: any) {
-        let opCode, data
-        [opCode, ...data] = evt.data.split(":")
+        let messages = evt.data.split("\n")
+        messages.forEach( (m: string) => {
+            let opCode, data
+            [opCode, ...data] = m.split(":")
 
-        switch(opCode) {
-            case 'ID': this.handleID(data); break;
-            case 'M': this.handleMove(data); break;
-            default:
-                break;
-        }
+            switch(opCode) {
+                case 'ID': this.handleID(data); break;
+                case 'M': this.handleMove(data); break;
+                case 'N': this.handleNewObject(data); break;
+                default:
+                    break;
+            }
+        })
     }
 
     setClient(client: Client) {
@@ -221,11 +226,37 @@ export default class Engine {
     }
 
     private handleMove(data: string[]) {
-        let sessionID, x, y
-        [ sessionID, x, y ] = data
-        console.log("session", sessionID, "x", x, "y", y)
-        let man = this.player;
-        man.setTarget(parseInt(x), parseInt(y));
+        let objectID, x, y
+        [ objectID, x, y ] = data
+        console.log("move", objectID, "x", x, "y", y)
 
+        let obj = this.tilesContainer.getTileByID(parseInt(objectID))
+        obj.setPosition(parseInt(x), parseInt(y));
+    }
+    private handleNewObject(data: string[]) {
+        let objectID, objectType, x, y
+        [ objectID, objectType, x, y ] = data
+        let processing = this.processing
+        switch(objectType) {
+            case 'T': {
+                console.log("MAKING TREE ", x, y, "id:", objectID)
+                let tree = new Tree(processing, new Color(0, processing.random(100, 200), 0, 255), processing.random(50, 103));
+                tree.id = parseInt(objectID)
+                this.tilesContainer.addTile(tree);
+                tree.setPosition(parseInt(x), parseInt(y));
+
+                break;
+            }
+            case 'Z': {
+                console.log("MAKING ZOMBIE ", x, y, "id:", objectID)
+                let robot = new Avatar( this.processing, new Color(255, 0, 0, 0), 103);
+                robot.id = parseInt(objectID)
+                robot.setPosition(parseInt(x), parseInt(y));
+                robot.setRole("avatar");
+                this.tilesContainer.addTile(robot);
+                break;
+            }
+            default:
+        }
     }
 }

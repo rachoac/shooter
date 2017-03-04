@@ -5,6 +5,7 @@ package main
 
 import (
 	"strconv"
+	"fmt"
 )
 
 // hub maintains the set of active clients and broadcasts messages to the
@@ -13,7 +14,7 @@ type Hub struct {
 	engine *Engine
 
 	// Registered clients.
-	clients map[*Client]int64
+	clients map[int64]*Client
 
 	// Inbound messages from the clients.
 	broadcast chan []byte
@@ -31,7 +32,24 @@ func newHub(engine *Engine) *Hub {
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		clients:    make(map[*Client]int64),
+		clients:    make(map[int64]*Client),
+	}
+}
+
+func (h *Hub) send(clientID int64, message []byte) {
+	client := h.clients[clientID]
+	client.send <- message
+}
+
+func (h *Hub) sendToAll(message []byte) {
+	//fmt.Println("num clients:", len(h.clients))
+	for _, client := range h.clients {
+		select {
+		case client.send <- message:
+		default:
+			close(client.send)
+			//delete(h.clients, clientID)
+		}
 	}
 }
 
@@ -39,24 +57,29 @@ func (h *Hub) run() {
 	for {
 		select {
 		case client := <-h.register:
+			fmt.Println("---- REGISTER ----")
 			playerID := h.engine.NewPlayer()
-			h.clients[client] = playerID
+			h.clients[playerID] = client
 			msg := "ID:" + strconv.FormatInt(playerID, 10)
 			client.send <- []byte(msg)
+			h.engine.sendWorld(playerID)
+			fmt.Println("sent ", msg)
 		case client := <-h.unregister:
-			if _, ok := h.clients[client]; ok {
-				playerID := h.clients[client]
-				h.engine.RemovePlayer(playerID)
-				delete(h.clients, client)
-				close(client.send)
+			for playerID, hClient := range h.clients {
+				if hClient == client {
+					h.engine.RemovePlayer(playerID)
+					delete(h.clients, playerID)
+				}
 			}
+			close(client.send)
 		case message := <-h.broadcast:
-			for client := range h.clients {
+			h.engine.eventStream <- message
+			for playerID, client := range h.clients {
 				select {
 				case client.send <- message:
 				default:
 					close(client.send)
-					delete(h.clients, client)
+					delete(h.clients, playerID)
 				}
 			}
 		}

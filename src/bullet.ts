@@ -13,7 +13,9 @@ export default class Bullet extends Tile {
         this.height = height
     }
 
-    update() {}
+    update() {
+        return true
+    }
 
     render() {
         let height = this.height

@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 	"strings"
+	"sync"
 	log "github.com/Sirupsen/logrus"
 )
 
@@ -99,128 +100,151 @@ func (e *Engine) RemoveAndBroadcast(object *Object) {
 
 func (e *Engine) TickleBullets() {
 	bullets := e.ObjectContainer.GetObjectsByType("Bullet")
+
+	var wg sync.WaitGroup
+	wg.Add(len(bullets))
+
 	for _, bullet := range bullets {
-		x := bullet.X
-		y := bullet.Y
+		go func(bullet *Object) {
+			defer wg.Done()
 
-		if x == bullet.TargetX && y == bullet.TargetY {
-			// target met
-			e.RemoveAndBroadcast(bullet)
-			continue
-		}
+			x := bullet.X
+			y := bullet.Y
 
-		if bullet.Distance > 100 {
-			// out of range
-			e.RemoveAndBroadcast(bullet)
-			continue
-		}
-		//distance1 := Distance(x, y, bullet.TargetX, bullet.TargetY)
+			if x == bullet.TargetX && y == bullet.TargetY {
+				// target met
+				e.RemoveAndBroadcast(bullet)
+				return
+			}
 
-		if x < bullet.TargetX {
-			x += bullet.Speed
-		}
-		if y < bullet.TargetY {
-			y += bullet.Speed
-		}
-		if x > bullet.TargetX {
-			x -= bullet.Speed
-		}
-		if y > bullet.TargetY {
-			y -= bullet.Speed
-		}
+			if bullet.Distance > 100 {
+				// out of range
+				e.RemoveAndBroadcast(bullet)
+				return
+			}
+			//distance1 := Distance(x, y, bullet.TargetX, bullet.TargetY)
 
-		distance2 := Distance(x, y, bullet.TargetX, bullet.TargetY)
-		if distance2 < float64(bullet.Speed) {
-			x = bullet.TargetX
-			y = bullet.TargetY
-		}
+			if x < bullet.TargetX {
+				x += bullet.Speed
+			}
+			if y < bullet.TargetY {
+				y += bullet.Speed
+			}
+			if x > bullet.TargetX {
+				x -= bullet.Speed
+			}
+			if y > bullet.TargetY {
+				y -= bullet.Speed
+			}
 
-		if e.ObjectContainer.CollisionAt(bullet, x, y) == nil {
-			bullet.X = x
-			bullet.Y = y
-			e.broadcastMove(bullet)
-		} else {
-			// break bullet & show explosion
-			e.broadcastExplosion(x, y, RandomNumber(20, 40))
-			e.RemoveAndBroadcast(bullet)
-			continue
-		}
+			distance2 := Distance(x, y, bullet.TargetX, bullet.TargetY)
+			if distance2 < float64(bullet.Speed) {
+				x = bullet.TargetX
+				y = bullet.TargetY
+			}
+
+			if e.ObjectContainer.CollisionAt(bullet, x, y) == nil {
+				bullet.X = x
+				bullet.Y = y
+				e.broadcastMove(bullet)
+			} else {
+				// break bullet & show explosion
+				e.broadcastExplosion(x, y, RandomNumber(20, 40))
+				e.RemoveAndBroadcast(bullet)
+				return
+			}
+
+		}(bullet)
+
 	}
+
+	wg.Wait()
 }
 
+func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
+	if len(players) < 1 {
+		zombie.TargetObjectID = 0
+		return
+	}
+	// each zombie should evaluate who the closest
+	// player is, and make that one their target
+	var closest *Object
+	zombieTarget := e.ObjectContainer.GetObject(zombie.TargetObjectID)
+	if zombieTarget != nil {
+		distance1 := Distance(zombie.X, zombie.Y, zombieTarget.X, zombieTarget.Y)
+		for _, player := range players {
+			// see if anyone else is closer
+			distance2 := Distance(zombie.X, zombie.Y, player.X, player.Y)
+			if distance2 < distance1 {
+				// other player is closer, its now the target
+				closest = player
+				break;
+			}
+		}
+		if closest == nil {
+			// current target is still closest
+			closest = zombieTarget
+		}
+	} else {
+		// zombie has no target; acquire a new one
+		closestDistance := float64(-1)
+		for _, player := range players {
+			var distance float64
+			if closest != nil {
+				distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+			}
+			if closest == nil || distance < closestDistance {
+				closest = player
+				closestDistance = distance
+			}
+		}
+	}
+
+	if closest != nil {
+		zombie.TargetObjectID = closest.ID
+	} else {
+		return
+	}
+
+	x := zombie.X
+	y := zombie.Y
+	// move the zombie one click closer to their target
+	if x < closest.X {
+		x += zombie.Speed
+	}
+	if y < closest.Y {
+		y += zombie.Speed
+	}
+	if x > closest.X {
+		x -= zombie.Speed
+	}
+	if y > closest.Y {
+		y -= zombie.Speed
+	}
+
+	if e.ObjectContainer.CollisionAt(zombie, x, y) == nil {
+		zombie.X = x
+		zombie.Y = y
+		e.broadcastMove(zombie)
+	}
+}
 
 func (e *Engine) TickleZombies() {
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 	players := e.ObjectContainer.GetObjectsByType("Player")
 
+	var wg sync.WaitGroup
+	wg.Add(len(zombies))
+
 	for _, zombie := range zombies {
-		if len(players) < 1 {
-			zombie.TargetObjectID = 0
-			continue
-		}
-		// each zombie should evaluate who the closest
-		// player is, and make that one their target
-		var closest *Object
-		zombieTarget := e.ObjectContainer.GetObject(zombie.TargetObjectID)
-		if zombieTarget != nil {
-			distance1 := Distance(zombie.X, zombie.Y, zombieTarget.X, zombieTarget.Y)
-			for _, player := range players {
-				// see if anyone else is closer
-				distance2 := Distance(zombie.X, zombie.Y, player.X, player.Y)
-				if distance2 < distance1 {
-					// other player is closer, its now the target
-					closest = player
-					break;
-				}
-			}
-			if closest == nil {
-				// current target is still closest
-				closest = zombieTarget
-			}
-		} else {
-			// zombie has no target; acquire a new one
-			closestDistance := float64(-1)
-			for _, player := range players {
-				var distance float64
-				if closest != nil {
-					distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
-				}
-				if closest == nil || distance < closestDistance {
-					closest = player
-					closestDistance = distance
-				}
-			}
-		}
+		go func(zombie *Object) {
+			defer wg.Done()
+			e.processZombie(zombie, players)
 
-		if closest != nil {
-			zombie.TargetObjectID = closest.ID
-		} else {
-			continue
-		}
-
-		x := zombie.X
-		y := zombie.Y
-		// move the zombie one click closer to their target
-		if x < closest.X {
-			x += zombie.Speed
-		}
-		if y < closest.Y {
-			y += zombie.Speed
-		}
-		if x > closest.X {
-			x -= zombie.Speed
-		}
-		if y > closest.Y {
-			y -= zombie.Speed
-		}
-
-		if e.ObjectContainer.CollisionAt(zombie, x, y) == nil {
-			zombie.X = x
-			zombie.Y = y
-			e.broadcastMove(zombie)
-		}
+		}(zombie)
 	}
 
+	wg.Wait()
 }
 
 func (e *Engine) logState() {

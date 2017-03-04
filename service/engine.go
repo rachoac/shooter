@@ -103,7 +103,7 @@ func (e *Engine) RemovePlayer(playerID int64) {
 	player := e.ObjectContainer.GetObject(playerID)
 	if player != nil {
 		e.RemoveAndBroadcast(player)
-		e.ObjectContainer.DeleteObjectByID(playerID)
+		e.ObjectContainer.DeleteObject(player)
 	}
 }
 

@@ -1,5 +1,8 @@
 package main
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 type Object struct {
 	ID                int64
 	OriginID	  int64
@@ -60,6 +63,7 @@ type ObjectContainer struct {
 	ObjectsByCode map[string]map[int64]*Object
 	ObjectsByType map[string]map[int64]*Object
 	IDSequence int64
+	S		  sync.RWMutex
 }
 
 func NewObjectContainer() *ObjectContainer{
@@ -82,6 +86,8 @@ func (oc *ObjectContainer) CreateBlankObject() *Object {
 }
 
 func (oc *ObjectContainer) WriteObject(object *Object) {
+	oc.S.Lock()
+
 	// index by ID
 	oc.ObjectsByID[object.ID] = object
 
@@ -104,9 +110,12 @@ func (oc *ObjectContainer) WriteObject(object *Object) {
 		}
 		peers[object.ID] = object
 	}
+	oc.S.Unlock()
 }
 
 func (oc *ObjectContainer) DeleteObject(object *Object) {
+	oc.S.Lock()
+
 	// index by code
 	{
 		peers := oc.ObjectsByCode[object.Code]
@@ -121,6 +130,8 @@ func (oc *ObjectContainer) DeleteObject(object *Object) {
 
 	// index by ID
 	delete(oc.ObjectsByID, object.ID)
+	oc.S.Unlock()
+
 }
 
 func (oc *ObjectContainer) DeleteAll() {
@@ -130,21 +141,20 @@ func (oc *ObjectContainer) DeleteAll() {
 }
 
 func (oc *ObjectContainer) GetObject(objectID int64) *Object {
+	oc.S.RLock()
+	defer oc.S.RUnlock()
 	return oc.ObjectsByID[objectID]
 }
 
-func (oc *ObjectContainer) DeleteObjectByID(objectID int64) {
-	object := oc.GetObject(objectID)
-	if object != nil {
-		oc.DeleteObject(object)
-	}
-}
-
 func (oc *ObjectContainer) GetObjectsByCode(objectCode string) (map[int64]*Object) {
+	oc.S.RLock()
+	defer oc.S.RUnlock()
 	return oc.ObjectsByCode[objectCode]
 }
 
 func (oc *ObjectContainer) GetObjectsByType(objectType string) (map[int64]*Object) {
+	oc.S.RLock()
+	defer oc.S.RUnlock()
 	return oc.ObjectsByType[objectType]
 }
 

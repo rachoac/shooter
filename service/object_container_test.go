@@ -62,34 +62,6 @@ func TestDeleteObject(t *testing.T) {
 
 }
 
-func TestDeleteObjectByID(t *testing.T) {
-	container := NewObjectContainer()
-
-	object := Object{
-		1,
-		100,
-		200,
-		"Type1",
-		"T",
-	}
-
-	container.WriteObject(&object)
-	container.DeleteObjectByID(object.ID)
-
-	{
-		dbObject := container.GetObject(1)
-		assert.Nil(t, dbObject)
-	}
-	{
-		objects := container.GetObjectsByCode("T")
-		assert.Len(t, objects, 0)
-	}
-	{
-		objects := container.GetObjectsByType("Type1")
-		assert.Len(t, objects, 0)
-	}
-}
-
 func TestClearObjects(t *testing.T) {
 	container := NewObjectContainer()
 

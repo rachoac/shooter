@@ -94,7 +94,11 @@ func (e *Engine) RemovePlayer(playerID int64) {
 			zombie.TargetObjectID = 0
 		}
 	}
-	e.ObjectContainer.DeleteObjectByID(playerID)
+	player := e.ObjectContainer.GetObject(playerID)
+	if player != nil {
+		e.RemoveAndBroadcast(player)
+		e.ObjectContainer.DeleteObjectByID(playerID)
+	}
 }
 
 func (e *Engine) RemoveAndBroadcast(object *Object) {
@@ -313,6 +317,7 @@ func (e *Engine) logState() {
 }
 
 func (e *Engine) MainLoop() {
+	lastCount := 0
 	for e.Running {
 		e.Tick += 1
 
@@ -328,14 +333,16 @@ func (e *Engine) MainLoop() {
 		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 		if e.Tick % 60 == 0 {
 			//e.logState()
-			log.Info("Zombie count ", len(zombies))
-		}
-
-		if (len(zombies) < 4) {
-			// randomly spawn another one
-			if RandomBool() {
-				e.broadcastObject(e.spawnZombie())
-				e.broadcastObject(e.spawnZombie())
+			if lastCount != len(zombies) {
+				lastCount = len(zombies)
+				log.Info("Zombie count ", lastCount)
+			}
+			if lastCount < 5 {
+				// randomly spawn another one
+				if RandomBool() {
+					e.broadcastObject(e.spawnZombie())
+					e.broadcastObject(e.spawnZombie())
+				}
 			}
 		}
 

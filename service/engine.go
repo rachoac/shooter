@@ -125,15 +125,8 @@ func (e *Engine) TickleBullets() {
 			x := bullet.X
 			y := bullet.Y
 
-			if x == bullet.TargetX && y == bullet.TargetY {
+			if (x == bullet.TargetX && y == bullet.TargetY) || bullet.Distance > 100 {
 				// target met
-				e.broadcastExplosion(x, y, 20)
-				e.RemoveAndBroadcast(bullet)
-				return
-			}
-
-			if bullet.Distance > 100 {
-				// out of range
 				e.broadcastExplosion(x, y, 20)
 				e.RemoveAndBroadcast(bullet)
 				return
@@ -327,9 +320,19 @@ func (e *Engine) MainLoop() {
 			e.Tick = 0
 		}
 
-		e.TickleZombies()
+		var wg sync.WaitGroup
+		wg.Add(2)
+		func() {
+			defer wg.Done()
+			e.TickleZombies()
+		}()
+		func() {
+			defer wg.Done()
+			e.TicklePlayers()
+		}()
+		wg.Wait()
+
 		e.TickleBullets()
-		e.TicklePlayers()
 
 		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 		if e.Tick % 60 == 0 {

@@ -75,10 +75,10 @@ export default  class TilesContainer {
         for (let i = 0; i < tiles.length; i++) {
             let tile = tiles[i];
             if (!tile.collideable()) {
-                continue;
+                // continue;
             }
             if (targetTile.collisionDetector(x, y, tile)) {
-                return { tile };
+                // return { tile };
             }
         }
 

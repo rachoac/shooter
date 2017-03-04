@@ -4,6 +4,7 @@ import (
 	"time"
 	"strings"
 	log "github.com/Sirupsen/logrus"
+	"github.com/thedataguild/faer/util"
 )
 
 type Engine struct {
@@ -37,6 +38,20 @@ func (e *Engine) SetHub(hub *Hub) {
 	e.hub = hub
 }
 
+func (e *Engine) HumanoidRecalculateBounds(x int64, y int64) *Bounds {
+	currentX := float64(x)
+	currentY := float64(y)
+
+	height := float64(103)
+	boundWidth := height * 0.25
+	boundX := currentX - boundWidth * 0.27
+	boundY := currentY - height * 0.12
+	boundX2 := boundX + height *0.14
+	boundY2 := boundY + height * 0.12
+
+	return NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
+}
+
 func (e *Engine) NewPlayer() int64 {
 	// random world position
 	x := RandomNumber(0, e.Width)
@@ -47,6 +62,8 @@ func (e *Engine) NewPlayer() int64 {
 	player.Type = "Player"
 	player.X = x
 	player.Y = y
+	player.Height = 103
+	player.RecalculateBounds = e.HumanoidRecalculateBounds
 
 	e.ObjectContainer.WriteObject(player)
 	log.Info("New player created, id ", player.ID)
@@ -95,18 +112,34 @@ func (e *Engine) CreateTree(x int64, y int64) *Object {
 	tree.X = x
 	tree.Y = y
 	tree.Height = RandomNumber(50, 103)
+	tree.Bounds = NewBounds(0, 0, 0, 0)
+	tree.RecalculateBounds = func(x int64, y int64) *Bounds {
+		currentX := float64(x)
+		currentY := float64(y)
+		height := float64(tree.Height)
+		boundWidth := height * 0.25
+		boundX := currentX - boundWidth * 0.05
+		boundY := currentY - height * 0.12
+		boundX2 := boundX + height * 0.15
+		boundY2 := boundY + height * 0.12
+
+		return NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
+	}
 
 	return tree
 }
 
 func (e *Engine) CreateZombie(x int64, y int64) *Object {
-	tree := e.ObjectContainer.CreateBlankObject()
-	tree.Code = "Z"
-	tree.Type = "Zombie"
-	tree.X = x
-	tree.Y = y
+	zombie := e.ObjectContainer.CreateBlankObject()
+	zombie.Code = "Z"
+	zombie.Type = "Zombie"
+	zombie.X = x
+	zombie.Y = y
+	zombie.Bounds = NewBounds(0, 0, 0, 0)
+	zombie.Speed = util.RandomInt64(1, 3)
+	zombie.RecalculateBounds = e.HumanoidRecalculateBounds
 
-	return tree
+	return zombie
 }
 
 func (e *Engine) TickleZombies() {
@@ -121,15 +154,34 @@ func (e *Engine) TickleZombies() {
 		// each zombie should evaluate who the closest
 		// player is, and make that one their target
 		var closest *Object
-		closestDistance := float64(-1)
-		for _, player := range players {
-			var distance float64
-			if closest != nil {
-				distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+		zombieTarget := e.ObjectContainer.GetObject(zombie.TargetObjectID)
+		if zombieTarget != nil {
+			distance1 := Distance(zombie.X, zombie.Y, zombieTarget.X, zombieTarget.Y)
+			for _, player := range players {
+				// see if anyone else is closer
+				distance2 := Distance(zombie.X, zombie.Y, player.X, player.Y)
+				if distance2 < distance1 {
+					// other player is closer, its now the target
+					closest = player
+					break;
+				}
 			}
-			if closest == nil || distance < closestDistance {
-				closest = player
-				closestDistance = distance
+			if closest == nil {
+				// current target is still closest
+				closest = zombieTarget
+			}
+		} else {
+			// zombie has no target; acquire a new one
+			closestDistance := float64(-1)
+			for _, player := range players {
+				var distance float64
+				if closest != nil {
+					distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+				}
+				if closest == nil || distance < closestDistance {
+					closest = player
+					closestDistance = distance
+				}
 			}
 		}
 
@@ -139,21 +191,27 @@ func (e *Engine) TickleZombies() {
 			continue
 		}
 
+		x := zombie.X
+		y := zombie.Y
 		// move the zombie one click closer to their target
-		if zombie.X < closest.X {
-			zombie.X += 1
+		if x < closest.X {
+			x += zombie.Speed
 		}
-		if zombie.Y < closest.Y {
-			zombie.Y += 1
+		if y < closest.Y {
+			y += zombie.Speed
 		}
-		if zombie.X > closest.X {
-			zombie.X -= 1
+		if x > closest.X {
+			x -= zombie.Speed
 		}
-		if zombie.Y > closest.Y {
-			zombie.Y -= 1
+		if y > closest.Y {
+			y -= zombie.Speed
 		}
 
-		e.broadcastMove(zombie)
+		if e.ObjectContainer.CollisionAt(zombie, x, y) == nil {
+			zombie.X = x
+			zombie.Y = y
+			e.broadcastMove(zombie)
+		}
 	}
 
 }
@@ -198,12 +256,12 @@ func (e *Engine) parseEvent(event string) {
 		object := e.ObjectContainer.GetObject(playerID)
 
 		if object != nil {
-			object.X = x
-			object.Y = y
+			if e.ObjectContainer.CollisionAt(object, x, y) == nil {
+				object.X = x
+				object.Y = y
+				e.broadcastMove(object)
+			}
 		}
-
-		e.broadcastMove(object)
-
 	}
 		default:
 		// nothing

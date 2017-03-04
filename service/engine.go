@@ -139,24 +139,7 @@ func (e *Engine) TickleBullets() {
 				return
 			}
 
-			if x < bullet.TargetX {
-				x += bullet.Speed
-			}
-			if y < bullet.TargetY {
-				y += bullet.Speed
-			}
-			if x > bullet.TargetX {
-				x -= bullet.Speed
-			}
-			if y > bullet.TargetY {
-				y -= bullet.Speed
-			}
-
-			distance2 := Distance(x, y, bullet.TargetX, bullet.TargetY)
-			if distance2 < float64(bullet.Speed) {
-				x = bullet.TargetX
-				y = bullet.TargetY
-			}
+			x, y = e.calcAdjustedPosition(bullet, x, y)
 
 			if e.ObjectContainer.CollisionAt(bullet, x, y) == nil {
 				bullet.X = x
@@ -174,6 +157,29 @@ func (e *Engine) TickleBullets() {
 	}
 
 	wg.Wait()
+}
+
+func (e *Engine) calcAdjustedPosition(object *Object, x int64, y int64) (int64, int64) {
+	if x < object.TargetX {
+		x += object.Speed
+	}
+	if y < object.TargetY {
+		y += object.Speed
+	}
+	if x > object.TargetX {
+		x -= object.Speed
+	}
+	if y > object.TargetY {
+		y -= object.Speed
+	}
+
+	distance2 := Distance(x, y, object.TargetX, object.TargetY)
+	if distance2 < float64(object.Speed) {
+		x = object.TargetX
+		y = object.TargetY
+	}
+
+	return x, y
 }
 
 func (e *Engine) TicklePlayers() {
@@ -194,24 +200,7 @@ func (e *Engine) TicklePlayers() {
 				return
 			}
 
-			if x < player.TargetX {
-				x += player.Speed
-			}
-			if y < player.TargetY {
-				y += player.Speed
-			}
-			if x > player.TargetX {
-				x -= player.Speed
-			}
-			if y > player.TargetY {
-				y -= player.Speed
-			}
-
-			distance2 := Distance(x, y, player.TargetX, player.TargetY)
-			if distance2 < float64(player.Speed) {
-				x = player.TargetX
-				y = player.TargetY
-			}
+			x, y = e.calcAdjustedPosition(player, x, y)
 
 			if e.ObjectContainer.CollisionAt(player, x, y) == nil {
 				if player.X != x || player.Y != y {

@@ -55,7 +55,7 @@ func (e *Engine) NewPlayer() int64 {
 }
 
 func (e *Engine) to(object *Object) string {
-	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height)
+	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height) + ":" + Int64ToString(object.Speed)
 }
 
 func (e *Engine) broadcastObject(object *Object) {

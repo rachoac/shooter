@@ -64,6 +64,10 @@ func (e *ObjectFactory) CreateZombie(x int64, y int64) *Object {
 	zombie.Bounds = NewBounds(0, 0, 0, 0)
 	zombie.Speed = RandomNumber(1, 3)
 	zombie.Height = 103
+	if RandomNumber(0, 5) == 3{
+		zombie.Speed = 5
+		zombie.Height = 80
+	}
 	zombie.RecalculateBounds = e.humanoidRecalculateBounds
 	zombie.AttackableBounds = e.humanoidAttackableBounds
 

@@ -2,7 +2,6 @@ import Color from './color'
 import Tile from './tile'
 import Tree from './tree'
 import Entity from './entity'
-import Robot from './robot'
 import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
 import Bullet from "./bullet";
@@ -31,26 +30,8 @@ export default class Engine {
         this.keyHandling = this.keyHandling.bind(this)
     }
 
-    createPlayer() {
-        let man = new Robot(this.processing, this, new Color(238, 255, 0, 255), 103, 3);
-        man.setRole("player");
-        return man;
-    }
-
     updatePosition(entity: Entity, newX: number, newY: number) {
         entity.setPosition(newX, newY)
-    }
-
-    spawnZombie(speed: number) {
-        let robot = new Robot( this.processing, this, new Color(255, 0, 0, 0), 103, speed);
-        if (this.processing.random(0, 1) > 0.5) {
-            robot.setPosition( this.processing.random(0, this.processing.width), this.processing.random(0, 1) > 0.5 ? -70 : this.processing.height+70 );
-        } else {
-            robot.setPosition( this.processing.random(0, 1) > 0.5 ? -70 : this.processing.width+70, this.processing.random(0, this.processing.height) );
-        }
-        robot.setRole("zombie");
-        // robot.setTargetEntity(this.player);
-        this.tilesContainer.addTile(robot);
     }
 
     restart() {
@@ -247,7 +228,7 @@ export default class Engine {
         }
     }
     private handleNewObject(data: string[]) {
-        const [ objectID, objectType, x, y, height ]: string[] = data
+        const [ objectID, objectType, x, y, height, speed ]: string[] = data
         let processing = this.processing
         switch(objectType) {
             case 'T': {
@@ -261,10 +242,18 @@ export default class Engine {
             }
             case 'Z': {
                 console.log("MAKING ZOMBIE ", x, y, "id:", objectID)
-                let robot = new Avatar( this.processing, new Color(255, 0, 0, 0), 103);
+                let zombieColor = new Color(0, 55, 0, 0)
+                let speedInt = parseInt(speed)
+                let zombieSize = 103
+                if (speedInt > 3) {
+                    zombieColor = new Color(255, 0, 0, 0)
+                    zombieSize = 80
+                }
+                let robot = new Avatar( this.processing, zombieColor, zombieSize);
                 robot.id = parseInt(objectID)
                 robot.setPosition(parseInt(x), parseInt(y));
                 robot.setRole("avatar");
+
                 this.tilesContainer.addTile(robot);
                 break;
             }

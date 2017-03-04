@@ -1,23 +1,26 @@
 package main
-
+import "fmt"
 type Object struct {
-	ID int64
-	X int64
-	Y int64
-	Speed int64
-	Distance int64
-	Height int64
-	Type string
-	Code string
+	ID                int64
+	X                 int64
+	Y                 int64
+	Speed             int64
+	Distance          int64
+	Height            int64
+	Type              string
+	Code              string
 
-	LastX int64
-	LastY int64
+	LastX             int64
+	LastY             int64
 
-	TargetX int64
-	TargetY int64
-	TargetObjectID int64
-	Bounds *Bounds
+	TargetX           int64
+	TargetY           int64
+	TargetObjectID    int64
+	Bounds            *Bounds
 	RecalculateBounds func(x int64, y int64) *Bounds
+	OnAttack          func(other *Object)
+	AttackableBounds  func(self *Object) *Bounds
+	Damaging	  bool
 }
 
 func (o *Object) GetBounds() *Bounds {
@@ -43,8 +46,12 @@ func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
 	} else {
 		targetBounds = o.RecalculateBounds(x, y)
 	}
-
-	return targetBounds.Collision(other.GetBounds())
+	if targetBounds != nil {
+		otherBounds := other.GetBounds()
+		return otherBounds != nil && targetBounds.Collision(otherBounds)
+	} else {
+		return false
+	}
 }
 
 type ObjectContainer struct {
@@ -64,9 +71,13 @@ func NewObjectContainer() *ObjectContainer{
 	return &container
 }
 
+func (oc *ObjectContainer) DefaultAttackableBounds(self *Object) *Bounds {
+	return nil
+}
+
 func (oc *ObjectContainer) CreateBlankObject() *Object {
 	oc.IDSequence = oc.IDSequence + 1
-	return &Object{ID: oc.IDSequence, Speed: 1}
+	return &Object{ID: oc.IDSequence, Speed: 1, OnAttack: func(other *Object){}, AttackableBounds: oc.DefaultAttackableBounds }
 }
 
 func (oc *ObjectContainer) WriteObject(object *Object) {
@@ -136,25 +147,22 @@ func (oc *ObjectContainer) GetObjectsByType(objectType string) (map[int64]*Objec
 	return oc.ObjectsByType[objectType]
 }
 
-func (oc *ObjectContainer) CollisionDetector(x int64, y int64, object *Object, other *Object) bool {
-	if (object.ID == other.ID) {
-		return false
-	}
-
-	var targetBounds *Bounds
-	if object.LastX == x && object.LastY == y {
-		targetBounds = object.GetBounds()
-	} else {
-		targetBounds = object.RecalculateBounds(x, y)
-	}
-
-	return targetBounds.Collision(other.GetBounds())
-}
-
 func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *Object {
-	for _, object := range oc.ObjectsByID {
-		if targetObject.CollisionDetector(x, y, object) {
-			return object
+	targetObjectBounds := targetObject.GetBounds()
+	for _, other := range oc.ObjectsByID {
+		if other.ID == targetObject.ID {
+			continue
+		}
+		if targetObject.Damaging {
+			bounds := other.AttackableBounds(other)
+			if bounds != nil && targetObjectBounds.Collision(bounds) {
+				fmt.Println("COLLIDED: ", other.Type)
+				other.OnAttack(targetObject)
+			}
+		}
+
+		if targetObject.CollisionDetector(x, y, other) {
+			return other
 		}
 	}
 

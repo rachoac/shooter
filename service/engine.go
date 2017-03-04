@@ -77,6 +77,11 @@ func (e *Engine) broadcastMove(object *Object) {
 	e.hub.sendToAll([]byte(message))
 }
 
+func (e *Engine) broadcastExplosion(x int64, y int64, height int64) {
+	message := "X:"	+ Int64ToString(x) + ":" + Int64ToString(y) + ":" + Int64ToString(height)
+	e.hub.sendToAll([]byte(message))
+}
+
 func (e *Engine) RemovePlayer(playerID int64) {
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 	for _, zombie := range zombies {
@@ -135,7 +140,8 @@ func (e *Engine) TickleBullets() {
 			bullet.Y = y
 			e.broadcastMove(bullet)
 		} else {
-			// break bullet
+			// break bullet & show explosion
+			e.broadcastExplosion(x, y, RandomNumber(20, 40))
 			e.RemoveAndBroadcast(bullet)
 			continue
 		}
@@ -314,6 +320,11 @@ func (e *Engine) Initialize() {
 			RandomNumber(0, e.Width),
 			RandomNumber(0, e.Height),
 		)
+		zombie.OnAttack = func(other *Object) {
+			// killed
+			e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
+			e.RemoveAndBroadcast(zombie)
+		}
 		e.ObjectContainer.WriteObject(zombie)
 	}
 

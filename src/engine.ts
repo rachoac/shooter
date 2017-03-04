@@ -6,6 +6,7 @@ import Robot from './robot'
 import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
 import Bullet from "./bullet";
+import Explosion from "./explosion";
 
 interface Client {
     send(value: string): void
@@ -191,6 +192,7 @@ export default class Engine {
                 case 'M': this.handleMove(data); break;
                 case 'N': this.handleNewObject(data); break;
                 case 'R': this.handleRemoveObject(data); break;
+                case 'X': this.handleExplosion(data); break;
                 default:
                     break;
             }
@@ -238,6 +240,13 @@ export default class Engine {
             obj.setPosition(parseInt(x), parseInt(y));
         }
     }
+    private handleExplosion(data: string[]) {
+        const [ x, y, height ]: string[] = data
+        let boom = new Explosion(this.processing, this, new Color(255, 255, 255, 255), parseInt(height), 4)
+        boom.setPosition(parseInt(x), parseInt(y));
+        this.tilesContainer.addTile(boom)
+    }
+
     private handleRemoveObject(data: string[]) {
         const [ objectID ]: string[] = data
         const tile = this.tilesContainer.getTileByID(parseInt(objectID))

@@ -214,9 +214,11 @@ func (e *Engine) TicklePlayers() {
 			}
 
 			if e.ObjectContainer.CollisionAt(player, x, y) == nil {
-				player.X = x
-				player.Y = y
-				e.broadcastMove(player)
+				if player.X != x || player.Y != y {
+					player.X = x
+					player.Y = y
+					e.broadcastMove(player)
+				}
 			}
 
 		}(player)
@@ -291,9 +293,12 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 	}
 
 	if e.ObjectContainer.CollisionAt(zombie, x, y) == nil {
-		zombie.X = x
-		zombie.Y = y
-		e.broadcastMove(zombie)
+		if zombie.X != x || zombie.Y != y {
+			// only broadcast move if change in position
+			zombie.X = x
+			zombie.Y = y
+			e.broadcastMove(zombie)
+		}
 	}
 }
 

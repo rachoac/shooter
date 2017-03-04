@@ -58,6 +58,10 @@ func (e *Engine) to(object *Object) string {
 	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height)
 }
 
+func (e *Engine) broadcastObject(object *Object) {
+	e.hub.sendToAll([]byte(e.to(object)))
+}
+
 func (e *Engine) sendWorld(playerID int64) {
 	for _, object := range e.ObjectContainer.ObjectsByID {
 		e.hub.send(playerID, []byte(e.to(object)))
@@ -155,6 +159,56 @@ func (e *Engine) TickleBullets() {
 			}
 
 		}(bullet)
+
+	}
+
+	wg.Wait()
+}
+
+func (e *Engine) TicklePlayers() {
+	players := e.ObjectContainer.GetObjectsByType("Player")
+
+	var wg sync.WaitGroup
+	wg.Add(len(players))
+
+	for _, player := range players {
+		go func(player *Object) {
+			defer wg.Done()
+
+			x := player.X
+			y := player.Y
+
+			if x == player.TargetX && y == player.TargetY {
+				// target met
+				return
+			}
+
+			if x < player.TargetX {
+				x += player.Speed
+			}
+			if y < player.TargetY {
+				y += player.Speed
+			}
+			if x > player.TargetX {
+				x -= player.Speed
+			}
+			if y > player.TargetY {
+				y -= player.Speed
+			}
+
+			distance2 := Distance(x, y, player.TargetX, player.TargetY)
+			if distance2 < float64(player.Speed) {
+				x = player.TargetX
+				y = player.TargetY
+			}
+
+			if e.ObjectContainer.CollisionAt(player, x, y) == nil {
+				player.X = x
+				player.Y = y
+				e.broadcastMove(player)
+			}
+
+		}(player)
 
 	}
 
@@ -266,6 +320,7 @@ func (e *Engine) MainLoop() {
 
 		e.TickleZombies()
 		e.TickleBullets()
+		e.TicklePlayers()
 
 		if e.Tick % 60 == 0 {
 			//e.logState()
@@ -312,6 +367,18 @@ func (e *Engine) parseEvent(event string) {
 		message := e.to(object)
 		e.hub.sendToAll([]byte(message))
 	}
+	case "T": {
+		// move player target to x,y
+		playerID :=  StringToInt64(parts[1])
+		x :=  StringToInt64(parts[2])
+		y :=  StringToInt64(parts[3])
+
+		object := e.ObjectContainer.GetObject(playerID)
+		if object != nil {
+			object.TargetX = x
+			object.TargetY = y
+		}
+	}
 		default:
 		// nothing
 	}
@@ -327,6 +394,43 @@ func (e *Engine) ListenToEvents() {
 	}
 }
 
+func (e *Engine) spawnZombie() *Object {
+	x := int64(0)
+	y := int64(0)
+
+	if RandomBool() {
+		x = RandomNumber(0, e.Width)
+		if RandomBool() {
+			y = -70
+		} else {
+			y = e.Height + 70
+		}
+	}
+
+	if RandomBool() {
+		y = RandomNumber(0, e.Height)
+		if RandomBool() {
+			x = -70
+		} else {
+			x = e.Width + 70
+		}
+	}
+
+	zombie := e.ObjectFactory.CreateZombie(x, y)
+
+	zombie.OnAttack = func(other *Object) {
+		// killed
+		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
+		e.RemoveAndBroadcast(zombie)
+
+		// spawn 2 more
+		e.broadcastObject(e.spawnZombie())
+		e.broadcastObject(e.spawnZombie())
+	}
+	e.ObjectContainer.WriteObject(zombie)
+	return zombie
+}
+
 func (e *Engine) Initialize() {
 	log.Info("Initializing engine")
 	e.eventStream = make(chan []byte)
@@ -340,16 +444,7 @@ func (e *Engine) Initialize() {
 	}
 
 	for i = 0; i < e.ZombieCount; i++ {
-		zombie := e.ObjectFactory.CreateZombie(
-			RandomNumber(0, e.Width),
-			RandomNumber(0, e.Height),
-		)
-		zombie.OnAttack = func(other *Object) {
-			// killed
-			e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
-			e.RemoveAndBroadcast(zombie)
-		}
-		e.ObjectContainer.WriteObject(zombie)
+		e.spawnZombie()
 	}
 
 	e.Running = true

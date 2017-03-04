@@ -12,6 +12,10 @@ func RandomNumber(min, max int64) int64 {
 	return int64(rand.Int63n(max-min) + min)
 }
 
+func RandomBool() bool {
+	return RandomNumber(0, 2) == 0
+}
+
 func Int64ToString(n int64) string {
 	return strconv.FormatInt(n, 10)
 }

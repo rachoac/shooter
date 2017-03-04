@@ -16,7 +16,7 @@ export default class Engine {
     tilesContainer: TilesContainer
     score: number
     bombs: string[]
-    player: Robot
+    player: Avatar
     processing: any
     private client: Client
     sessionID: number
@@ -38,11 +38,7 @@ export default class Engine {
     }
 
     updatePosition(entity: Entity, newX: number, newY: number) {
-        if (this.player && entity.id === this.player.id) {
-            this.client.send(`P:${this.sessionID}:${newX}:${newY}`)
-        } else {
-            entity.setPosition(newX, newY)
-        }
+        entity.setPosition(newX, newY)
     }
 
     spawnZombie(speed: number) {
@@ -67,13 +63,6 @@ export default class Engine {
 
         // remove self
         this.tilesContainer.removeTile(zombie);
-
-        // spawn more fast zombies
-        this.spawnZombie(zombie.speed + 0.1);
-
-        if (this.processing.random(0, 1) > 0.8) {
-            this.spawnZombie(0.1);
-        }
     }
 
     damage(target: Tile) {
@@ -91,11 +80,6 @@ export default class Engine {
         let targetY = man.y + yOffsetEnd
 
         this.client.send(`F:${x}:${y}:${targetX}:${targetY}:${speed}`)
-
-        // let bullet = new Bullet(this.processing, this.engine, new Color(255, 0, 0, 0), 8, speed, this.id)
-        // bullet.setPosition(x + xOffsetStart, y + yOffsetStart)
-        // bullet.setTarget(x + xOffsetEnd, y + yOffsetEnd)
-        // this.tilesContainer.addTile(bullet)
     }
 
     keyHandling() {
@@ -142,9 +126,8 @@ export default class Engine {
     mouseMovedHandling() {
         let mouseX = this.processing.mouseX
         let mouseY = this.processing.mouseY
-        let man = this.player
-        if (man) {
-            man.setTarget(mouseX, mouseY);
+        if (this.sessionID) {
+            this.client.send(`T:${this.sessionID}:${mouseX}:${mouseY}`)
         }
     }
 
@@ -288,18 +271,13 @@ export default class Engine {
             case 'P': {
                 console.log("MAKING PLAYER ", x, y, "id:", objectID)
                 let objectIdInt = parseInt(objectID)
-                if (objectIdInt === this.sessionID) {
-                    let player = this.createPlayer()
-                    player.id = objectIdInt
-                    player.setPosition(parseInt(x), parseInt(y));
-                    this.tilesContainer.addTile(player);
-                    this.player = player;
-                } else {
-                    let robot = new Avatar( this.processing, new Color(238, 255, 0, 255), 103);
-                    robot.id = parseInt(objectID)
-                    robot.setPosition(parseInt(x), parseInt(y));
-                    robot.setRole("avatar");
-                    this.tilesContainer.addTile(robot);
+                let robot = new Avatar( this.processing, new Color(238, 255, 0, 255), 103);
+                robot.id = objectIdInt
+                robot.setPosition(parseInt(x), parseInt(y));
+                robot.setRole("avatar");
+                this.tilesContainer.addTile(robot);
+                if (this.sessionID === objectIdInt) {
+                    this.player = robot
                 }
                 break;
             }

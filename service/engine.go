@@ -4,7 +4,6 @@ import (
 	"time"
 	"strings"
 	log "github.com/Sirupsen/logrus"
-	"github.com/thedataguild/faer/util"
 )
 
 type Engine struct {
@@ -14,6 +13,7 @@ type Engine struct {
 	ZombieCount int64
 
 	ObjectContainer *ObjectContainer
+	ObjectFactory *ObjectFactory
 	Running bool
 	Tick int64
 
@@ -29,7 +29,10 @@ func NewEngine(
 	zombieCount int64,
 ) *Engine {
 	container := NewObjectContainer()
-	engine := Engine{Width: width, Height: height, TreeCount: treeCount, ZombieCount: zombieCount, ObjectContainer: container}
+	factory := NewObjectFactory(container)
+	engine := Engine{Width: width, Height: height,
+		TreeCount: treeCount, ZombieCount: zombieCount,
+		ObjectContainer: container, ObjectFactory: factory}
 
 	return &engine
 }
@@ -38,33 +41,12 @@ func (e *Engine) SetHub(hub *Hub) {
 	e.hub = hub
 }
 
-func (e *Engine) HumanoidRecalculateBounds(x int64, y int64) *Bounds {
-	currentX := float64(x)
-	currentY := float64(y)
-
-	height := float64(103)
-	boundWidth := height * 0.25
-	boundX := currentX - boundWidth * 0.27
-	boundY := currentY - height * 0.12
-	boundX2 := boundX + height *0.14
-	boundY2 := boundY + height * 0.12
-
-	return NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
-}
-
 func (e *Engine) NewPlayer() int64 {
 	// random world position
 	x := RandomNumber(0, e.Width)
 	y := RandomNumber(0, e.Height)
 
-	player := e.ObjectContainer.CreateBlankObject()
-	player.Code = "P"
-	player.Type = "Player"
-	player.X = x
-	player.Y = y
-	player.Height = 103
-	player.RecalculateBounds = e.HumanoidRecalculateBounds
-
+	player := e.ObjectFactory.CreatePlayer(x, y)
 	e.ObjectContainer.WriteObject(player)
 	log.Info("New player created, id ", player.ID)
 
@@ -105,42 +87,61 @@ func (e *Engine) RemovePlayer(playerID int64) {
 	e.ObjectContainer.DeleteObjectByID(playerID)
 }
 
-func (e *Engine) CreateTree(x int64, y int64) *Object {
-	tree := e.ObjectContainer.CreateBlankObject()
-	tree.Code = "T"
-	tree.Type = "Tree"
-	tree.X = x
-	tree.Y = y
-	tree.Height = RandomNumber(50, 103)
-	tree.Bounds = NewBounds(0, 0, 0, 0)
-	tree.RecalculateBounds = func(x int64, y int64) *Bounds {
-		currentX := float64(x)
-		currentY := float64(y)
-		height := float64(tree.Height)
-		boundWidth := height * 0.25
-		boundX := currentX - boundWidth * 0.05
-		boundY := currentY - height * 0.12
-		boundX2 := boundX + height * 0.15
-		boundY2 := boundY + height * 0.12
+func (e *Engine) RemoveAndBroadcast(object *Object) {
+	e.ObjectContainer.DeleteObject(object)
+	e.hub.sendToAll([]byte("R:" + Int64ToString(object.ID)))
+}
 
-		return NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
+func (e *Engine) TickleBullets() {
+	bullets := e.ObjectContainer.GetObjectsByType("Bullet")
+	for _, bullet := range bullets {
+		x := bullet.X
+		y := bullet.Y
+
+		if x == bullet.TargetX && y == bullet.TargetY {
+			// target met
+			e.RemoveAndBroadcast(bullet)
+			continue
+		}
+
+		if bullet.Distance > 100 {
+			// out of range
+			e.RemoveAndBroadcast(bullet)
+			continue
+		}
+		//distance1 := Distance(x, y, bullet.TargetX, bullet.TargetY)
+
+		if x < bullet.TargetX {
+			x += bullet.Speed
+		}
+		if y < bullet.TargetY {
+			y += bullet.Speed
+		}
+		if x > bullet.TargetX {
+			x -= bullet.Speed
+		}
+		if y > bullet.TargetY {
+			y -= bullet.Speed
+		}
+
+		distance2 := Distance(x, y, bullet.TargetX, bullet.TargetY)
+		if distance2 < float64(bullet.Speed) {
+			x = bullet.TargetX
+			y = bullet.TargetY
+		}
+
+		if e.ObjectContainer.CollisionAt(bullet, x, y) == nil {
+			bullet.X = x
+			bullet.Y = y
+			e.broadcastMove(bullet)
+		} else {
+			// break bullet
+			e.RemoveAndBroadcast(bullet)
+			continue
+		}
 	}
-
-	return tree
 }
 
-func (e *Engine) CreateZombie(x int64, y int64) *Object {
-	zombie := e.ObjectContainer.CreateBlankObject()
-	zombie.Code = "Z"
-	zombie.Type = "Zombie"
-	zombie.X = x
-	zombie.Y = y
-	zombie.Bounds = NewBounds(0, 0, 0, 0)
-	zombie.Speed = util.RandomInt64(1, 3)
-	zombie.RecalculateBounds = e.HumanoidRecalculateBounds
-
-	return zombie
-}
 
 func (e *Engine) TickleZombies() {
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
@@ -234,6 +235,7 @@ func (e *Engine) MainLoop() {
 		}
 
 		e.TickleZombies()
+		e.TickleBullets()
 
 		if e.Tick % 60 == 0 {
 			//e.logState()
@@ -263,6 +265,23 @@ func (e *Engine) parseEvent(event string) {
 			}
 		}
 	}
+	case "F": {
+		// fire a bullet from x,y -> x2,y2
+		x :=  StringToInt64(parts[1])
+		y :=  StringToInt64(parts[2])
+		x2 :=  StringToInt64(parts[3])
+		y2 :=  StringToInt64(parts[4])
+		speed :=  StringToInt64(parts[5])
+
+		object := e.ObjectFactory.CreateBullet(x, y, speed)
+		object.TargetX = x2
+		object.TargetY = y2
+		e.ObjectContainer.WriteObject(object)
+
+		// announce the bullet
+		message := e.to(object)
+		e.hub.sendToAll([]byte(message))
+	}
 		default:
 		// nothing
 	}
@@ -283,7 +302,7 @@ func (e *Engine) Initialize() {
 	e.eventStream = make(chan []byte)
 	var i int64
 	for i = 0; i < e.TreeCount; i++ {
-		tree := e.CreateTree(
+		tree := e.ObjectFactory.CreateTree(
 			RandomNumber(0, e.Width),
 			RandomNumber(0, e.Height),
 		)
@@ -291,7 +310,7 @@ func (e *Engine) Initialize() {
 	}
 
 	for i = 0; i < e.ZombieCount; i++ {
-		zombie := e.CreateZombie(
+		zombie := e.ObjectFactory.CreateZombie(
 			RandomNumber(0, e.Width),
 			RandomNumber(0, e.Height),
 		)

@@ -2,7 +2,6 @@ import Entity from "./entity";
 import Color from "./color";
 import Engine from "./engine";
 import Bounds from "./bounds";
-import Bullet from "./bullet";
 
 export default class Robot extends Entity {
     constructor(processing: any, engine: Engine, color: Color, height: number, speed: number) {
@@ -51,14 +50,14 @@ export default class Robot extends Entity {
         return new Bounds(x, y, x + height/4, y + height/4)
     }
 
-    fireBullet(speed: number, xOffsetStart: number, yOffsetStart: number, xOffsetEnd: number, yOffsetEnd: number) {
-        let x = this.x
-        let y = this.y
-        let bullet = new Bullet(this.processing, this.engine, new Color(255, 0, 0, 0), 8, speed, this.id)
-        bullet.setPosition(x + xOffsetStart, y + yOffsetStart)
-        bullet.setTarget(x + xOffsetEnd, y + yOffsetEnd)
-        this.tilesContainer.addTile(bullet)
-    }
+    // fireBullet(speed: number, xOffsetStart: number, yOffsetStart: number, xOffsetEnd: number, yOffsetEnd: number) {
+    //     let x = this.x
+    //     let y = this.y
+    //     let bullet = new Bullet(this.processing, this.engine, new Color(255, 0, 0, 0), 8, speed, this.id)
+    //     bullet.setPosition(x + xOffsetStart, y + yOffsetStart)
+    //     bullet.setTarget(x + xOffsetEnd, y + yOffsetEnd)
+    //     this.tilesContainer.addTile(bullet)
+    // }
 
     collisionDetector(x: number, y: number, otherTile: Entity) {
         let collided = Entity.prototype.collisionDetector.call(this, x, y, otherTile)

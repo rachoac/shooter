@@ -5,6 +5,7 @@ import Entity from './entity'
 import Robot from './robot'
 import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
+import Bullet from "./bullet";
 
 interface Client {
     send(value: string): void
@@ -81,6 +82,21 @@ export default class Engine {
         }
     }
 
+    fireBullet(speed: number, xOffsetStart: number, yOffsetStart: number, xOffsetEnd: number, yOffsetEnd: number) {
+        let man = this.player;
+        let x = man.x + xOffsetStart
+        let y = man.y + yOffsetStart
+        let targetX = man.x + xOffsetEnd
+        let targetY = man.y + yOffsetEnd
+
+        this.client.send(`F:${x}:${y}:${targetX}:${targetY}:${speed}`)
+
+        // let bullet = new Bullet(this.processing, this.engine, new Color(255, 0, 0, 0), 8, speed, this.id)
+        // bullet.setPosition(x + xOffsetStart, y + yOffsetStart)
+        // bullet.setTarget(x + xOffsetEnd, y + yOffsetEnd)
+        // this.tilesContainer.addTile(bullet)
+    }
+
     keyHandling() {
         let keyCode = this.processing.keyCode
         let man = this.player;
@@ -101,20 +117,20 @@ export default class Engine {
             x += speed;
         }
 
-        // let bulletSpeed = 8;
+        let bulletSpeed = 12;
 
-        // if (keyCode === 87) {
-        //     man.fireBullet(bulletSpeed, 0, -30, 0, -300);
-        // }
-        // if (keyCode === 83) {
-        //     man.fireBullet(bulletSpeed, 0, 10, 0, 300);
-        // }
-        // if (keyCode === 65) {
-        //     man.fireBullet(bulletSpeed, 0, -30, -300, -30);
-        // }
-        // if (keyCode === 68) {
-        //     man.fireBullet(bulletSpeed, 0, -30, 300, -30);
-        // }
+        if (keyCode === 87) {
+            this.fireBullet(bulletSpeed, 0, -30, 0, -300);
+        }
+        if (keyCode === 83) {
+            this.fireBullet(bulletSpeed, 0, 10, 0, 300);
+        }
+        if (keyCode === 65) {
+            this.fireBullet(bulletSpeed, 0, -30, -300, -30);
+        }
+        if (keyCode === 68) {
+            this.fireBullet(bulletSpeed, 0, -30, 300, -30);
+        }
 
         if (keyCode === 32) {
             this.bombs.shift();
@@ -174,6 +190,7 @@ export default class Engine {
                 case 'ID': this.handleID(data); break;
                 case 'M': this.handleMove(data); break;
                 case 'N': this.handleNewObject(data); break;
+                case 'R': this.handleRemoveObject(data); break;
                 default:
                     break;
             }
@@ -221,6 +238,13 @@ export default class Engine {
             obj.setPosition(parseInt(x), parseInt(y));
         }
     }
+    private handleRemoveObject(data: string[]) {
+        const [ objectID ]: string[] = data
+        const tile = this.tilesContainer.getTileByID(parseInt(objectID))
+        if (tile) {
+            this.tilesContainer.removeTile(tile)
+        }
+    }
     private handleNewObject(data: string[]) {
         const [ objectID, objectType, x, y, height ]: string[] = data
         let processing = this.processing
@@ -241,6 +265,15 @@ export default class Engine {
                 robot.setPosition(parseInt(x), parseInt(y));
                 robot.setRole("avatar");
                 this.tilesContainer.addTile(robot);
+                break;
+            }
+            case 'B': {
+                console.log("MAKING BULLET ", x, y, "id:", objectID)
+                let bullet = new Bullet(processing, new Color(255, 0, 0, 0), 8);
+                bullet.id = parseInt(objectID)
+                bullet.setPosition(parseInt(x), parseInt(y));
+                bullet.setRole("bullet");
+                this.tilesContainer.addTile(bullet);
                 break;
             }
             case 'P': {

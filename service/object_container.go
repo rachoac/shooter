@@ -5,6 +5,7 @@ type Object struct {
 	X int64
 	Y int64
 	Speed int64
+	Distance int64
 	Height int64
 	Type string
 	Code string

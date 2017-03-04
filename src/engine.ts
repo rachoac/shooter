@@ -79,7 +79,7 @@ export default class Engine {
         let targetX = man.x + xOffsetEnd
         let targetY = man.y + yOffsetEnd
 
-        this.client.send(`F:${x}:${y}:${targetX}:${targetY}:${speed}`)
+        this.client.send(`F:${x}:${y}:${targetX}:${targetY}:${speed}:${man.id}`)
     }
 
     keyHandling() {
@@ -176,6 +176,7 @@ export default class Engine {
                 case 'N': this.handleNewObject(data); break;
                 case 'R': this.handleRemoveObject(data); break;
                 case 'X': this.handleExplosion(data); break;
+                case 'S': this.handleAttributePlayerKill(data); break;
                 default:
                     break;
             }
@@ -228,6 +229,14 @@ export default class Engine {
         let boom = new Explosion(this.processing, this, new Color(255, 255, 255, 255), parseInt(height), 4)
         boom.setPosition(parseInt(x), parseInt(y));
         this.tilesContainer.addTile(boom)
+    }
+
+    private handleAttributePlayerKill(data: string[]) {
+        const [ playerIDStr ]: string[] = data
+        const playerId = parseInt(playerIDStr)
+        if (this.player && this.player.id === playerId) {
+            this.score++;
+        }
     }
 
     private handleRemoveObject(data: string[]) {

@@ -216,6 +216,9 @@ func (e *Engine) TicklePlayers() {
 }
 
 func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
+	if zombie == nil {
+		return
+	}
 	if len(players) < 1 {
 		zombie.TargetObjectID = 0
 		return
@@ -328,8 +331,8 @@ func (e *Engine) MainLoop() {
 			log.Info("Zombie count ", len(zombies))
 		}
 
-		if (len(zombies) < 1) {
-			// randomly spawn 2 more
+		if (len(zombies) < 4) {
+			// randomly spawn another one
 			if RandomBool() {
 				e.broadcastObject(e.spawnZombie())
 				e.broadcastObject(e.spawnZombie())
@@ -367,10 +370,12 @@ func (e *Engine) parseEvent(event string) {
 		x2 :=  StringToInt64(parts[3])
 		y2 :=  StringToInt64(parts[4])
 		speed :=  StringToInt64(parts[5])
+		ownerID :=  StringToInt64(parts[6])
 
 		object := e.ObjectFactory.CreateBullet(x, y, speed)
 		object.TargetX = x2
 		object.TargetY = y2
+		object.OriginID = ownerID
 		e.ObjectContainer.WriteObject(object)
 
 		// announce the bullet
@@ -404,26 +409,29 @@ func (e *Engine) ListenToEvents() {
 	}
 }
 
+func (e *Engine) attributePlayerKill(player *Object) {
+	message := "S:" + Int64ToString(player.ID)
+	playerID := player.ID
+	e.hub.send(playerID, []byte(message))
+}
+
 func (e *Engine) spawnZombie() *Object {
+	offset := int64(20)
 	x := int64(0)
 	y := int64(0)
 
+	x = RandomNumber(0, e.Width)
 	if RandomBool() {
-		x = RandomNumber(0, e.Width)
-		if RandomBool() {
-			y = -70
-		} else {
-			y = e.Height + 70
-		}
+		y = -offset
+	} else {
+		y = e.Height + offset
 	}
 
+	y = RandomNumber(0, e.Height)
 	if RandomBool() {
-		y = RandomNumber(0, e.Height)
-		if RandomBool() {
-			x = -70
-		} else {
-			x = e.Width + 70
-		}
+		x = -offset
+	} else {
+		x = e.Width + offset
 	}
 
 	zombie := e.ObjectFactory.CreateZombie(x, y)
@@ -433,9 +441,13 @@ func (e *Engine) spawnZombie() *Object {
 		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
 		e.RemoveAndBroadcast(zombie)
 
+		origin := e.ObjectContainer.GetObject(other.OriginID)
+		if origin != nil && origin.Type == "Player" {
+			e.attributePlayerKill(origin)
+		}
+
 		if RandomBool() {
-			// spawn 2 more
-			e.broadcastObject(e.spawnZombie())
+			// spawn more
 			e.broadcastObject(e.spawnZombie())
 		}
 	}

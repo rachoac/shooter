@@ -2,6 +2,7 @@ package main
 import "fmt"
 type Object struct {
 	ID                int64
+	OriginID	  int64
 	X                 int64
 	Y                 int64
 	Speed             int64

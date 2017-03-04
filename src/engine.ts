@@ -244,10 +244,9 @@ export default class Engine {
                 console.log("MAKING ZOMBIE ", x, y, "id:", objectID)
                 let zombieColor = new Color(0, 55, 0, 0)
                 let speedInt = parseInt(speed)
-                let zombieSize = 103
+                let zombieSize = parseInt(height)
                 if (speedInt > 3) {
                     zombieColor = new Color(255, 0, 0, 0)
-                    zombieSize = 80
                 }
                 let robot = new Avatar( this.processing, zombieColor, zombieSize);
                 robot.id = parseInt(objectID)

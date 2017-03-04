@@ -13,6 +13,7 @@ type Engine struct {
 	TreeCount int64
 	ZombieCount int64
 
+	ProtocolHandler *ProtocolHandler
 	ObjectContainer *ObjectContainer
 	ObjectFactory *ObjectFactory
 	Running bool
@@ -31,9 +32,12 @@ func NewEngine(
 ) *Engine {
 	container := NewObjectContainer()
 	factory := NewObjectFactory(container)
+	protocolHandler := NewProtocolHandler()
 	engine := Engine{Width: width, Height: height,
 		TreeCount: treeCount, ZombieCount: zombieCount,
-		ObjectContainer: container, ObjectFactory: factory}
+		ObjectContainer: container, ObjectFactory: factory,
+		ProtocolHandler: protocolHandler,
+	}
 
 	return &engine
 }
@@ -54,17 +58,21 @@ func (e *Engine) NewPlayer() int64 {
 	return player.ID
 }
 
-func (e *Engine) to(object *Object) string {
-	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height) + ":" + Int64ToString(object.Speed)
+func (e *Engine) broadcast(message string) {
+	e.hub.sendToAll([]byte(message))
+}
+
+func (e *Engine) sendToPlayer(playerID int64, message string) {
+	e.hub.send(playerID, []byte(message))
 }
 
 func (e *Engine) broadcastObject(object *Object) {
-	e.hub.sendToAll([]byte(e.to(object)))
+	e.broadcast(e.ProtocolHandler.asNew(object))
 }
 
 func (e *Engine) sendWorld(playerID int64) {
 	for _, object := range e.ObjectContainer.ObjectsByID {
-		e.hub.send(playerID, []byte(e.to(object)))
+		e.sendToPlayer(playerID, e.ProtocolHandler.asNew(object))
 	}
 
 	newPlayer := e.ObjectContainer.GetObject(playerID)
@@ -72,19 +80,17 @@ func (e *Engine) sendWorld(playerID int64) {
 	// annouce new player to other players
 	for _, player := range e.ObjectContainer.GetObjectsByType("Player") {
 		if player.ID != playerID {
-			e.hub.send(player.ID, []byte(e.to(newPlayer)))
+			e.sendToPlayer(player.ID, e.ProtocolHandler.asNew(newPlayer))
 		}
 	}
 }
 
 func (e *Engine) broadcastMove(object *Object) {
-	message := "M:" + Int64ToString(object.ID) + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y)
-	e.hub.sendToAll([]byte(message))
+	e.broadcast(e.ProtocolHandler.asMove(object))
 }
 
 func (e *Engine) broadcastExplosion(x int64, y int64, height int64) {
-	message := "X:"	+ Int64ToString(x) + ":" + Int64ToString(y) + ":" + Int64ToString(height)
-	e.hub.sendToAll([]byte(message))
+	e.broadcast(e.ProtocolHandler.asExplosionAt(x, y, height))
 }
 
 func (e *Engine) RemovePlayer(playerID int64) {
@@ -103,7 +109,7 @@ func (e *Engine) RemovePlayer(playerID int64) {
 
 func (e *Engine) RemoveAndBroadcast(object *Object) {
 	e.ObjectContainer.DeleteObject(object)
-	e.hub.sendToAll([]byte("R:" + Int64ToString(object.ID)))
+	e.broadcast(e.ProtocolHandler.asRemove(object))
 }
 
 func (e *Engine) TickleBullets() {
@@ -121,16 +127,17 @@ func (e *Engine) TickleBullets() {
 
 			if x == bullet.TargetX && y == bullet.TargetY {
 				// target met
+				e.broadcastExplosion(x, y, 20)
 				e.RemoveAndBroadcast(bullet)
 				return
 			}
 
 			if bullet.Distance > 100 {
 				// out of range
+				e.broadcastExplosion(x, y, 20)
 				e.RemoveAndBroadcast(bullet)
 				return
 			}
-			//distance1 := Distance(x, y, bullet.TargetX, bullet.TargetY)
 
 			if x < bullet.TargetX {
 				x += bullet.Speed
@@ -386,8 +393,7 @@ func (e *Engine) parseEvent(event string) {
 		e.ObjectContainer.WriteObject(object)
 
 		// announce the bullet
-		message := e.to(object)
-		e.hub.sendToAll([]byte(message))
+		e.broadcast(e.ProtocolHandler.asNew(object))
 	}
 	case "T": {
 		// move player target to x,y
@@ -417,9 +423,7 @@ func (e *Engine) ListenToEvents() {
 }
 
 func (e *Engine) attributePlayerKill(player *Object) {
-	message := "S:" + Int64ToString(player.ID)
-	playerID := player.ID
-	e.hub.send(playerID, []byte(message))
+	e.sendToPlayer(player.ID, e.ProtocolHandler.asAttributePlayerKill(player))
 }
 
 func (e *Engine) spawnZombie() *Object {
@@ -430,8 +434,6 @@ func (e *Engine) spawnZombie() *Object {
 	x = RandomNumber(0, e.Width)
 	if RandomBool() {
 		y = -offset
-	} else {
-		y = e.Height + offset
 	}
 
 	y = RandomNumber(0, e.Height)

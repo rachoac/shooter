@@ -5,16 +5,16 @@ import (
 )
 type Object struct {
 	ID                int64
-	OriginID	  int64
+	OriginID          int64
 	X                 int64
 	Y                 int64
 	Speed             int64
 	Distance          int64
 	Height            int64
-	Score		  int64
+	Score             int64
 	Type              string
 	Code              string
-	Name		  string
+	Name              string
 
 	LastX             int64
 	LastY             int64
@@ -24,10 +24,10 @@ type Object struct {
 	TargetObjectID    int64
 	Bounds            *Bounds
 	RecalculateBounds func(x int64, y int64) *Bounds
-	OnAttack          func(other *Object)
+	OnAttacked        func(other *Object)
 	AttackableBounds  func(self *Object) *Bounds
-	Damaging	  bool
-	HP		  int64
+	Damaging          bool
+	HP                int64
 }
 
 func (o *Object) GetBounds() *Bounds {
@@ -74,7 +74,7 @@ func NewObjectContainer() *ObjectContainer{
 	container.ObjectsByID = make(map[int64]*Object)
 	container.ObjectsByCode = make(map[string]map[int64]*Object)
 	container.ObjectsByType = make(map[string]map[int64]*Object)
-	container.IDSequence = 1
+	container.IDSequence = 100000
 
 	return &container
 }
@@ -88,7 +88,7 @@ func (oc *ObjectContainer) CreateBlankObject() *Object {
 	return &Object{
 		ID: oc.IDSequence,
 		Speed: 1,
-		OnAttack:
+		OnAttacked:
 		func(other *Object){},
 		AttackableBounds: oc.DefaultAttackableBounds,
 	}
@@ -180,7 +180,7 @@ func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *
 			bounds := other.AttackableBounds(other)
 			if bounds != nil && targetObjectBounds.Collision(bounds) {
 				fmt.Println("COLLIDED: ", other.Type)
-				other.OnAttack(targetObject)
+				other.OnAttacked(targetObject)
 			}
 		}
 

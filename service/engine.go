@@ -52,6 +52,21 @@ func (e *Engine) NewPlayer() int64 {
 	y := RandomNumber(0, e.Height)
 
 	player := e.ObjectFactory.CreatePlayer(x, y)
+	player.OnAttacked = func(other *Object) {
+		if other.ID == player.ID || other.OriginID == player.ID {
+			return
+		}
+		player.HP -=1
+		e.broadcastExplosion(player.X, player.Y, RandomNumber(40, 60))
+		e.playerAttributes(player)
+
+		if  player.HP < 1 {
+			// killed
+			e.broadcastPlayedKilled(player)
+			e.RemoveAndBroadcast(player)
+		}
+	}
+
 	e.ObjectContainer.WriteObject(player)
 	log.Info("New player created, id ", player.ID)
 
@@ -76,6 +91,7 @@ func (e *Engine) sendWorld(playerID int64) {
 	}
 
 	newPlayer := e.ObjectContainer.GetObject(playerID)
+	e.playerAttributes(newPlayer)
 
 	// annouce new player to other players
 	for _, player := range e.ObjectContainer.GetObjectsByType("Player") {
@@ -115,9 +131,9 @@ func (e *Engine) TickleBullets() {
 	bullets := e.ObjectContainer.GetObjectsByType("Bullet")
 
 	var wg sync.WaitGroup
-	wg.Add(len(bullets))
 
 	for _, bullet := range bullets {
+		wg.Add(1)
 		go func(bullet *Object) {
 			defer wg.Done()
 
@@ -178,9 +194,9 @@ func (e *Engine) TicklePlayers() {
 	players := e.ObjectContainer.GetObjectsByType("Player")
 
 	var wg sync.WaitGroup
-	wg.Add(len(players))
 
 	for _, player := range players {
+		wg.Add(1)
 		go func(player *Object) {
 			defer wg.Done()
 
@@ -428,9 +444,12 @@ func (e *Engine) ListenToEvents() {
 	}
 }
 
-func (e *Engine) attributePlayerKill(player *Object) {
-	player.Score += 1
-	e.broadcast(e.ProtocolHandler.asAttributePlayerKill(player))
+func (e *Engine) playerAttributes(player *Object) {
+	e.broadcast(e.ProtocolHandler.asPlayerAttributes(player))
+}
+
+func (e *Engine) broadcastPlayedKilled(player *Object) {
+	e.broadcast(e.ProtocolHandler.asPlayerKilled(player))
 }
 
 func (e *Engine) spawnZombie() *Object {
@@ -452,14 +471,15 @@ func (e *Engine) spawnZombie() *Object {
 
 	zombie := e.ObjectFactory.CreateZombie(x, y)
 
-	zombie.OnAttack = func(other *Object) {
+	zombie.OnAttacked = func(other *Object) {
 		// killed
 		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
 		e.RemoveAndBroadcast(zombie)
 
 		origin := e.ObjectContainer.GetObject(other.OriginID)
 		if origin != nil && origin.Type == "Player" {
-			e.attributePlayerKill(origin)
+			origin.Score += 1
+			e.playerAttributes(origin)
 		}
 
 		if RandomBool() {

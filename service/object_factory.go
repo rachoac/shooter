@@ -84,7 +84,7 @@ func (e *ObjectFactory) CreatePlayer(x, y int64) *Object {
 	player.Speed = 8
 	player.RecalculateBounds = e.humanoidRecalculateBounds
 	player.AttackableBounds = e.humanoidAttackableBounds
-	player.HP = 1
+	player.HP = 10
 
 	return player
 }

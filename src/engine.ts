@@ -81,16 +81,16 @@ export default class Engine {
         let bulletSpeed = 12;
 
         if (keyCode === 87) {
-            this.fireBullet(bulletSpeed, 0, -30, 0, -300);
+            this.fireBullet(bulletSpeed, 0, -50, 0, -300);
         }
         if (keyCode === 83) {
-            this.fireBullet(bulletSpeed, 0, 10, 0, 300);
+            this.fireBullet(bulletSpeed, 0, -50, 0, 300);
         }
         if (keyCode === 65) {
-            this.fireBullet(bulletSpeed, 0, -30, -300, -30);
+            this.fireBullet(bulletSpeed, 0, -50, -300, -50);
         }
         if (keyCode === 68) {
-            this.fireBullet(bulletSpeed, 0, -30, 300, -30);
+            this.fireBullet(bulletSpeed, 0, -50, 300, -50);
         }
 
         if (keyCode === 32) {

@@ -153,7 +153,8 @@ func (e *Engine) TickleBullets() {
 
 			x, y = e.calcAdjustedPosition(bullet, x, y)
 
-			if e.ObjectContainer.CollisionAt(bullet, x, y) == nil {
+			collisionObject := e.ObjectContainer.CollisionAt(bullet, x, y)
+			if collisionObject == nil || collisionObject.ID == bullet.OriginID {
 				bullet.X = x
 				bullet.Y = y
 				e.broadcastMove(bullet)

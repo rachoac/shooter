@@ -20,6 +20,7 @@ export default class Engine {
     private client: Client
     sessionID: number
     playerName: string
+    connected: boolean
 
     constructor(tilesContainer: TilesContainer, processing: any, playerName: string) {
         this.tilesContainer = tilesContainer;
@@ -130,6 +131,11 @@ export default class Engine {
         }
 
         this.processing.background(0, 0, 0);
+        if (!this.connected) {
+            this.processing.fill(255, 0, 0);
+            this.processing.text("Lost connection", this.processing.width/2 - 50, this.processing.height/2);
+            return
+        }
 
         for ( let i = 0; i < tiles.length; i++ ) {
             let tile = tiles[i];
@@ -145,6 +151,14 @@ export default class Engine {
 
     onSocketClose(evt: any) {
         console.log("Close!", evt)
+        this.connected = false
+        this.restart()
+    }
+
+    onSocketOpen(evt: any) {
+        if (evt){}
+        this.restart()
+        this.connected = true
     }
 
     onSocketMessage(evt: any) {

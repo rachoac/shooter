@@ -21,10 +21,13 @@
             conn.onclose = function (evt) {
                 engine.onSocketClose(evt)
             };
+            conn.onopen = function(evt) {
+                engine.setClient(conn)
+                engine.onSocketOpen(evt)
+            }
             conn.onmessage = function (evt) {
                 engine.onSocketMessage(evt)
             }
-            engine.setClient(conn)
 
             processing.draw = function() {
                 engine.update()

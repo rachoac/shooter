@@ -85,7 +85,13 @@ func (oc *ObjectContainer) DefaultAttackableBounds(self *Object) *Bounds {
 
 func (oc *ObjectContainer) CreateBlankObject() *Object {
 	oc.IDSequence = oc.IDSequence + 1
-	return &Object{ID: oc.IDSequence, Speed: 1, OnAttack: func(other *Object){}, AttackableBounds: oc.DefaultAttackableBounds }
+	return &Object{
+		ID: oc.IDSequence,
+		Speed: 1,
+		OnAttack:
+		func(other *Object){},
+		AttackableBounds: oc.DefaultAttackableBounds,
+	}
 }
 
 func (oc *ObjectContainer) WriteObject(object *Object) {

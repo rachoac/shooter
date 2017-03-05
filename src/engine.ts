@@ -21,6 +21,8 @@ export default class Engine {
     playerName: string
     connected: boolean
     killed: boolean
+    hiScore: number
+    hiScoreHolder: string
 
     constructor(tilesContainer: TilesContainer, processing: any, playerName: string) {
         this.tilesContainer = tilesContainer;
@@ -161,8 +163,14 @@ export default class Engine {
         this.processing.fill(255,255,255);
         this.processing.text("MP " + bulletBars, 10, 70);
 
+        if (this.hiScoreHolder) {
+            this.processing.fill(255, 255, 0);
+            this.processing.text(`High score: ${this.hiScore} - ${this.hiScoreHolder === this.playerName ? "YOU!" : this.hiScoreHolder}`, 10, 90);
+        }
+
         this.processing.fill(255, 0, 0);
         this.processing.text(this.bombs.join(""), this.processing.width - 100, 30);
+
     }
 
     onSocketClose(evt: any) {
@@ -191,6 +199,7 @@ export default class Engine {
                 case 'X': this.handleExplosion(data); break;
                 case 'A': this.handlePlayerAttributes(data); break;
                 case 'K': this.handlePlayerKilled(data); break;
+                case 'Y': this.handleHighScore(data); break;
                 default:
                     break;
             }
@@ -264,6 +273,12 @@ export default class Engine {
             // handle killed
             this.killed = true
         }
+    }
+
+    private handleHighScore(data: string[]) {
+        const [ scoreStr, holderName ]: string[] = data
+        this.hiScoreHolder = holderName
+        this.hiScore = parseInt(scoreStr)
     }
 
     private handleRemoveObject(data: string[]) {

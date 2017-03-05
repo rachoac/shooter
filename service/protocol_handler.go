@@ -41,3 +41,7 @@ func (e *ProtocolHandler) asPlayerAttributes(player *Object) string {
 func (e *ProtocolHandler) asPlayerKilled(player *Object) string {
 	return "K:" + Int64ToString(player.ID)
 }
+
+func (e *ProtocolHandler) asHighScore(score int64, holder string) string {
+	return "Y:" + Int64ToString(score) + ":" + holder
+}

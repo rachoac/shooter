@@ -12,6 +12,8 @@ type Engine struct {
 	Height int64
 	TreeCount int64
 	ZombieCount int64
+	HighScore int64
+	HighScoreHolder string
 
 	ProtocolHandler *ProtocolHandler
 	ObjectContainer *ObjectContainer
@@ -96,6 +98,7 @@ func (e *Engine) sendWorld(playerID int64) {
 
 	newPlayer := e.ObjectContainer.GetObject(playerID)
 	e.playerAttributes(newPlayer)
+	e.sendToPlayer(playerID, e.ProtocolHandler.asHighScore(e.HighScore, e.HighScoreHolder))
 
 	// annouce new player to other players
 	for _, player := range e.ObjectContainer.GetObjectsByType("Player") {
@@ -214,7 +217,7 @@ func (e *Engine) TicklePlayers() {
 				}
 			}
 
-			if e.Tick - player.LastBulletTick > 20 {
+			if e.Tick - player.LastBulletTick > 10 {
 				// add bullets periodically
 				if player.Bullets < player.MaxBullets {
 					player.Bullets += 1
@@ -494,6 +497,14 @@ func (e *Engine) broadcastPlayedKilled(player *Object) {
 	e.broadcast(e.ProtocolHandler.asPlayerKilled(player))
 }
 
+func (e *Engine) handleHighScore(player *Object) {
+	if player.Score > e.HighScore {
+		// new high score
+		e.HighScore = player.Score
+		e.HighScoreHolder = player.Name
+		e.broadcast(e.ProtocolHandler.asHighScore(e.HighScore, e.HighScoreHolder))
+	}
+}
 func (e *Engine) spawnZombie() *Object {
 	offset := int64(20)
 	x := int64(0)
@@ -515,13 +526,14 @@ func (e *Engine) spawnZombie() *Object {
 
 	zombie.OnAttacked = func(other *Object) bool {
 		// killed
-		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
+		//e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
 		e.RemoveAndBroadcast(zombie)
 
 		origin := e.ObjectContainer.GetObject(other.OriginID)
 		if origin != nil && origin.Type == "Player" {
 			origin.Score += 1
 			e.playerAttributes(origin)
+			e.handleHighScore(origin)
 		}
 
 		if RandomBool() {

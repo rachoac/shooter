@@ -203,6 +203,15 @@ func (e *Engine) TicklePlayers() {
 		go func(player *Object) {
 			defer wg.Done()
 
+			if e.Tick - player.LastHealTick > 400 {
+				// heal periodically
+				if player.HP < player.MaxHP {
+					player.HP += 1
+					e.playerAttributes(player)
+					player.LastHealTick = e.Tick
+				}
+			}
+
 			x := player.X
 			y := player.Y
 
@@ -304,7 +313,7 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 	i := Distance(zombie.X, zombie.Y, closest.X, closest.Y)
 	if i < 20 {
 		// we're close enough for an attack
-		if e.Tick == 0 || e.Tick - zombie.LastAttackTick > int64(float64(100)/float64(zombie.Speed)) {
+		if e.Tick == 0 || e.Tick - zombie.LastAttackTick > int64(float64(80)/float64(zombie.Speed)) {
 			// enough time has elapsed since the last attack
 			zombie.LastAttackTick = e.Tick
 
@@ -371,7 +380,7 @@ func (e *Engine) MainLoop() {
 				lastCount = len(zombies)
 				log.Info("Zombie count ", lastCount)
 			}
-			if lastCount < 5 {
+			if lastCount < 15 {
 				// randomly spawn another one
 				if RandomBool() {
 					e.broadcastObject(e.spawnZombie())

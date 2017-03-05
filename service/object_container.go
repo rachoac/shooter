@@ -1,23 +1,25 @@
 package main
+
 import (
 	"fmt"
 	"sync"
 )
-type Object struct {
-	ID                int64
-	OriginID          int64
-	X                 int64
-	Y                 int64
-	Speed             int64
-	Distance          int64
-	Height            int64
-	Score             int64
-	Type              string
-	Code              string
-	Name              string
 
-	LastX             int64
-	LastY             int64
+type Object struct {
+	ID       int64
+	OriginID int64
+	X        int64
+	Y        int64
+	Speed    int64
+	Distance int64
+	Height   int64
+	Score    int64
+	Type     string
+	Code     string
+	Name     string
+
+	LastX int64
+	LastY int64
 
 	TargetX           int64
 	TargetY           int64
@@ -28,7 +30,9 @@ type Object struct {
 	AttackableBounds  func(self *Object) *Bounds
 	Damaging          bool
 	HP                int64
+	MaxHP             int64
 	LastAttackTick    int64
+	LastHealTick      int64
 }
 
 func (o *Object) GetBounds() *Bounds {
@@ -44,7 +48,7 @@ func (o *Object) GetBounds() *Bounds {
 }
 
 func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
-	if (o.ID == other.ID) {
+	if o.ID == other.ID {
 		return false
 	}
 
@@ -63,14 +67,14 @@ func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
 }
 
 type ObjectContainer struct {
-	ObjectsByID map[int64]*Object
+	ObjectsByID   map[int64]*Object
 	ObjectsByCode map[string]map[int64]*Object
 	ObjectsByType map[string]map[int64]*Object
-	IDSequence int64
-	S		  sync.RWMutex
+	IDSequence    int64
+	S             sync.RWMutex
 }
 
-func NewObjectContainer() *ObjectContainer{
+func NewObjectContainer() *ObjectContainer {
 	container := ObjectContainer{}
 	container.ObjectsByID = make(map[int64]*Object)
 	container.ObjectsByCode = make(map[string]map[int64]*Object)
@@ -87,10 +91,9 @@ func (oc *ObjectContainer) DefaultAttackableBounds(self *Object) *Bounds {
 func (oc *ObjectContainer) CreateBlankObject() *Object {
 	oc.IDSequence = oc.IDSequence + 1
 	return &Object{
-		ID: oc.IDSequence,
-		Speed: 1,
-		OnAttacked:
-		func(other *Object){},
+		ID:               oc.IDSequence,
+		Speed:            1,
+		OnAttacked:       func(other *Object) {},
 		AttackableBounds: oc.DefaultAttackableBounds,
 	}
 }
@@ -156,13 +159,13 @@ func (oc *ObjectContainer) GetObject(objectID int64) *Object {
 	return oc.ObjectsByID[objectID]
 }
 
-func (oc *ObjectContainer) GetObjectsByCode(objectCode string) (map[int64]*Object) {
+func (oc *ObjectContainer) GetObjectsByCode(objectCode string) map[int64]*Object {
 	oc.S.RLock()
 	defer oc.S.RUnlock()
 	return oc.ObjectsByCode[objectCode]
 }
 
-func (oc *ObjectContainer) GetObjectsByType(objectType string) (map[int64]*Object) {
+func (oc *ObjectContainer) GetObjectsByType(objectType string) map[int64]*Object {
 	oc.S.RLock()
 	defer oc.S.RUnlock()
 	return oc.ObjectsByType[objectType]

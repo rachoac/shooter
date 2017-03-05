@@ -6,11 +6,51 @@ export default class Avatar extends Tile {
 
     private color: Color
     private height: number
+    private name: string
+    private f: any
+    private score: number
 
     constructor(processing: any, color: Color, height: number) {
         super(processing, "avatar")
         this.color = color
         this.height = height
+        this.f = processing.createFont("monospace", 15);
+    }
+
+    setScore(score: number) {
+        this.score = score
+    }
+    setName(name: string) {
+        this.name = name
+    }
+
+    strToHex(str: string): string {
+        function hashCode(str: string) { // java String#hashCode
+            var hash = 0;
+            for (var i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return hash;
+        }
+
+        function intToRGB(i: number){
+            var c = (i & 0x00FFFFFF)
+                .toString(16)
+                .toUpperCase();
+
+            return "00000".substring(0, 6 - c.length) + c;
+        }
+
+        return intToRGB(hashCode(str))
+    }
+
+    hexToRgb(hex: string): any {
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+            r: parseInt(result[1], 16),
+            g: parseInt(result[2], 16),
+            b: parseInt(result[3], 16)
+        } : null;
     }
 
     render() {
@@ -21,13 +61,25 @@ export default class Avatar extends Tile {
 
         this.processing.stroke(255, 255, 255)
         // head
-        this.processing.fill(color.r, color.g, color.b)
+
+        if (this.name) {
+            let rgb = this.hexToRgb(this.strToHex(this.name))
+            this.processing.fill(rgb.r, rgb.g, rgb.b)
+        } else {
+            this.processing.fill(color.r, color.g, color.b)
+        }
         this.processing.ellipse(x, y, height/4, height/4)
         // body
         this.processing.line(x, y + height/8, x, y + height/3)
         this.processing.line(x - height/6, y + height/8, x + height/6, y + height/8)
         this.processing.line(x, y + height/3, x - height/6, y + height/2)
         this.processing.line(x, y + height/3, x + height/6, y + height/2)
+
+        this.processing.textFont(this.f)
+        this.processing.fill(255, 255, 255)
+        if (this.name) {
+            this.processing.text(this.name + " " + this.score, x - height/4, y - height/4);
+        }
     }
 
     calcBounds(x: number, y: number): Bounds {

@@ -19,12 +19,14 @@ export default class Engine {
     processing: any
     private client: Client
     sessionID: number
+    playerName: string
 
-    constructor(tilesContainer: TilesContainer, processing: any) {
+    constructor(tilesContainer: TilesContainer, processing: any, playerName: string) {
         this.tilesContainer = tilesContainer;
         this.processing = processing
         this.score = 0;
         this.bombs = ['!', '!', '!'];
+        this.playerName = playerName
 
         this.mouseMovedHandling = this.mouseMovedHandling.bind(this)
         this.keyHandling = this.keyHandling.bind(this)
@@ -158,6 +160,7 @@ export default class Engine {
                 case 'R': this.handleRemoveObject(data); break;
                 case 'X': this.handleExplosion(data); break;
                 case 'S': this.handleAttributePlayerKill(data); break;
+                case 'K': this.handlePlayerKilled(data); break;
                 default:
                     break;
             }
@@ -168,7 +171,7 @@ export default class Engine {
         this.client = client
     }
 
-    static initialize(processing: any) {
+    static initialize(processing: any, playerName: string) {
         let w  = window,
             d  = w.document,
             de = d.documentElement,
@@ -179,7 +182,7 @@ export default class Engine {
         processing.size(x,y);
 
         let tilesContainer = new TilesContainer();
-        let engine = new Engine(tilesContainer, processing);
+        let engine = new Engine(tilesContainer, processing, playerName);
 
         processing.keyPressed = engine.keyHandling
         processing.mouseMoved = engine.mouseMovedHandling
@@ -194,6 +197,7 @@ export default class Engine {
     private handleID(data: string[]) {
         console.log("Got ID: " + data[0])
         this.sessionID = parseInt(data[0])
+        this.client.send(`I:${this.sessionID}:${this.playerName}`)
     }
 
     private handleMove(data: string[]) {
@@ -213,10 +217,24 @@ export default class Engine {
     }
 
     private handleAttributePlayerKill(data: string[]) {
+        const [ playerIDStr, scoreStr ]: string[] = data
+        const playerId = parseInt(playerIDStr)
+        if (this.player && this.player.id === playerId) {
+            this.score = parseInt(scoreStr)
+        }
+        const tile = this.tilesContainer.getTileByID(playerId)
+        if (tile) {
+            var b: Avatar
+            b = <Avatar> tile;
+            b.setScore(parseInt(scoreStr))
+        }
+    }
+
+    private handlePlayerKilled(data: string[]) {
         const [ playerIDStr ]: string[] = data
         const playerId = parseInt(playerIDStr)
         if (this.player && this.player.id === playerId) {
-            this.score++;
+            // handle killed
         }
     }
 
@@ -228,7 +246,7 @@ export default class Engine {
         }
     }
     private handleNewObject(data: string[]) {
-        const [ objectID, objectType, x, y, height, speed ]: string[] = data
+        const [ objectID, objectType, x, y, height, speed, name, score ]: string[] = data
         let processing = this.processing
         switch(objectType) {
             case 'T': {
@@ -272,6 +290,8 @@ export default class Engine {
                 robot.id = objectIdInt
                 robot.setPosition(parseInt(x), parseInt(y));
                 robot.setRole("avatar");
+                robot.setName(name)
+                robot.setScore(parseInt(score))
                 this.tilesContainer.addTile(robot);
                 if (this.sessionID === objectIdInt) {
                     this.player = robot

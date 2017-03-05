@@ -62,8 +62,6 @@ func (h *Hub) run() {
 			h.clients[playerID] = client
 			msg := "ID:" + strconv.FormatInt(playerID, 10)
 			client.send <- []byte(msg)
-			h.engine.sendWorld(playerID)
-			fmt.Println("sent ", msg)
 		case client := <-h.unregister:
 			for playerID, hClient := range h.clients {
 				if hClient == client {

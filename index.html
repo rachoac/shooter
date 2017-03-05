@@ -1,30 +1,45 @@
 <html>
 <head>
     <script src="processing.js"></script>
+    <script src="chance.js"></script>
     <link href="style.css" rel="stylesheet">
+    <script id="script1" type="text/javascript" src="public/build/main.js"></script>
 </head>
 <body>
-<canvas id="canvas1"></canvas>
-<script id="script1" type="text/javascript" src="public/build/main.js"></script>
-<script>
-    function sketchProc(processing) {
-        var engine = window.Engine.initialize(processing)
+    <input type="text" id="player-name" placeholder="Playername">
+    <canvas id="canvas1"></canvas>
+    <script>
+        var playerNameElement =  document.getElementById("player-name")
 
-        var conn = new WebSocket("ws://" + document.location.host + "/ws");
-        conn.onclose = function (evt) {
-            engine.onSocketClose(evt)
-        };
-        conn.onmessage = function (evt) {
-            engine.onSocketMessage(evt)
-        }
-        engine.setClient(conn)
+        function sketchProc(processing) {
+            var playerName = playerNameElement.value || chance.first()
+            playerNameElement.parentNode.removeChild(playerNameElement)
 
-        processing.draw = function() {
-            engine.update()
+            var engine = window.Engine.initialize(processing, playerName)
+
+            var conn = new WebSocket("ws://" + document.location.host + "/ws");
+            conn.onclose = function (evt) {
+                engine.onSocketClose(evt)
+            };
+            conn.onmessage = function (evt) {
+                engine.onSocketMessage(evt)
+            }
+            engine.setClient(conn)
+
+            processing.draw = function() {
+                engine.update()
+            }
         }
-    }
-    var canvas = document.getElementById("canvas1")
-    var p = new Processing(canvas, sketchProc)
-</script>
+        playerNameElement.focus();
+        playerNameElement.addEventListener("keyup", function(event) {
+            event.preventDefault();
+            if (event.keyCode == 13) {
+                var canvas = document.getElementById("canvas1")
+                var p = new Processing(canvas, sketchProc)
+            }
+        });
+
+
+    </script>
 </body>
 </html>

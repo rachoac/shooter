@@ -11,8 +11,10 @@ type Object struct {
 	Speed             int64
 	Distance          int64
 	Height            int64
+	Score		  int64
 	Type              string
 	Code              string
+	Name		  string
 
 	LastX             int64
 	LastY             int64
@@ -25,6 +27,7 @@ type Object struct {
 	OnAttack          func(other *Object)
 	AttackableBounds  func(self *Object) *Bounds
 	Damaging	  bool
+	HP		  int64
 }
 
 func (o *Object) GetBounds() *Bounds {

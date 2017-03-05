@@ -9,7 +9,13 @@ func NewProtocolHandler() *ProtocolHandler {
 }
 
 func (e *ProtocolHandler) asNew(object *Object) string {
-	return "N:" + Int64ToString(object.ID) + ":" + object.Code + ":" + Int64ToString(object.X) + ":" + Int64ToString(object.Y) + ":" + Int64ToString(object.Height) + ":" + Int64ToString(object.Speed)
+	return "N:" + Int64ToString(object.ID) + ":" +
+		object.Code + ":" + Int64ToString(object.X) + ":" +
+		Int64ToString(object.Y) + ":" +
+		Int64ToString(object.Height) + ":" +
+		Int64ToString(object.Speed) + ":" +
+		object.Name + ":" +
+		Int64ToString(object.Score)
 }
 
 func (e *ProtocolHandler) asMove(object *Object) string {
@@ -26,5 +32,9 @@ func (e *ProtocolHandler) asRemove(object *Object) string {
 }
 
 func (e *ProtocolHandler) asAttributePlayerKill(player *Object) string {
-	return "S:" + Int64ToString(player.ID)
+	return "S:" + Int64ToString(player.ID) + ":" + Int64ToString(player.Score)
+}
+
+func (e *ProtocolHandler) asPlayerKilled(player *Object) string {
+	return "K:" + Int64ToString(player.ID)
 }

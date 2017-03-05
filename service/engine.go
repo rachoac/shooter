@@ -374,6 +374,16 @@ func (e *Engine) parseEvent(event string) {
 			}
 		}
 	}
+	case "I": {
+		playerID :=  StringToInt64(parts[1])
+		name :=  parts[2]
+		object := e.ObjectContainer.GetObject(playerID)
+
+		if object != nil {
+			object.Name = name
+		}
+		e.sendWorld(playerID)
+	}
 	case "F": {
 		// fire a bullet from x,y -> x2,y2
 		x :=  StringToInt64(parts[1])
@@ -420,7 +430,8 @@ func (e *Engine) ListenToEvents() {
 }
 
 func (e *Engine) attributePlayerKill(player *Object) {
-	e.sendToPlayer(player.ID, e.ProtocolHandler.asAttributePlayerKill(player))
+	player.Score += 1
+	e.broadcast(e.ProtocolHandler.asAttributePlayerKill(player))
 }
 
 func (e *Engine) spawnZombie() *Object {

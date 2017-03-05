@@ -139,6 +139,7 @@ export default class Engine {
             this.processing.fill(255, 0, 0);
             this.processing.text("~YOU DIED, RIP!~", this.processing.width/2 - 180, this.processing.height/2);
             this.processing.text(" Final score: " + this.player.score, this.processing.width/2 - 180, this.processing.height/2 + 40);
+            this.processing.text("Reload to try again",  this.processing.width/2 - 180, this.processing.height/2 + 80);
             return
         }
 

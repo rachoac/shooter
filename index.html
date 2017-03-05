@@ -9,13 +9,20 @@
     <input type="text" id="player-name" placeholder="Playername">
     <canvas id="canvas1"></canvas>
     <script>
-        var playerNameElement =  document.getElementById("player-name")
+        var savedName = localStorage.getItem("_playerName_");
+        var playerNameElement = document.getElementById("player-name")
+        if (savedName) {
+            playerNameElement.value = savedName
+        }
 
         function sketchProc(processing) {
-            var playerName = playerNameElement.value || chance.first()
+            var playerName = playerNameElement.value;
+            if (playerName) {
+                localStorage.setItem("_playerName_", playerName)
+            }
             playerNameElement.parentNode.removeChild(playerNameElement)
 
-            var engine = window.Engine.initialize(processing, playerName)
+            var engine = window.Engine.initialize(processing, playerName || chance.first())
 
             var conn = new WebSocket("ws://" + document.location.host + "/ws");
             conn.onclose = function (evt) {

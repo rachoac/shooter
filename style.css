@@ -9,6 +9,7 @@ body {
 }
 
 #player-name {
-    width: 150px;
+    width: 600px;
     padding: 8px;
+    font-size: 10em;
 }

@@ -34,7 +34,8 @@ func (e *ProtocolHandler) asRemove(object *Object) string {
 func (e *ProtocolHandler) asPlayerAttributes(player *Object) string {
 	return "A:" + Int64ToString(player.ID) + ":" +
 		Int64ToString(player.Score) + ":" +
-		Int64ToString(player.HP)
+		Int64ToString(player.HP) + ":" +
+		Int64ToString(player.Bullets)
 }
 
 func (e *ProtocolHandler) asPlayerKilled(player *Object) string {

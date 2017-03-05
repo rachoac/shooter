@@ -31,8 +31,11 @@ type Object struct {
 	Damaging          bool
 	HP                int64
 	MaxHP             int64
+	Bullets		  int64
+	MaxBullets	  int64
 	LastAttackTick    int64
 	LastHealTick      int64
+	LastBulletTick    int64
 }
 
 func (o *Object) GetBounds() *Bounds {

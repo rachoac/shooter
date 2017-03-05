@@ -214,6 +214,15 @@ func (e *Engine) TicklePlayers() {
 				}
 			}
 
+			if e.Tick - player.LastBulletTick > 20 {
+				// add bullets periodically
+				if player.Bullets < player.MaxBullets {
+					player.Bullets += 1
+					e.playerAttributes(player)
+					player.LastBulletTick = e.Tick
+				}
+			}
+
 			x := player.X
 			y := player.Y
 
@@ -426,22 +435,29 @@ func (e *Engine) parseEvent(event string) {
 		e.sendWorld(playerID)
 	}
 	case "F": {
-		// fire a bullet from x,y -> x2,y2
-		x :=  StringToInt64(parts[1])
-		y :=  StringToInt64(parts[2])
-		x2 :=  StringToInt64(parts[3])
-		y2 :=  StringToInt64(parts[4])
-		speed :=  StringToInt64(parts[5])
+		// fire a bullet from x,y -> x2,y2 ... if you have enough bullets
 		ownerID :=  StringToInt64(parts[6])
+		owner := e.ObjectContainer.GetObject(ownerID)
+		if owner != nil && owner.Bullets - 1 > 0 {
+			x :=  StringToInt64(parts[1])
+			y :=  StringToInt64(parts[2])
+			x2 :=  StringToInt64(parts[3])
+			y2 :=  StringToInt64(parts[4])
+			speed :=  StringToInt64(parts[5])
 
-		object := e.ObjectFactory.CreateBullet(x, y, speed)
-		object.TargetX = x2
-		object.TargetY = y2
-		object.OriginID = ownerID
-		e.ObjectContainer.WriteObject(object)
+			object := e.ObjectFactory.CreateBullet(x, y, speed)
 
-		// announce the bullet
-		e.broadcast(e.ProtocolHandler.asNew(object))
+			object.TargetX = x2
+			object.TargetY = y2
+			object.OriginID = ownerID
+			e.ObjectContainer.WriteObject(object)
+
+			// announce the bullet
+			e.broadcast(e.ProtocolHandler.asNew(object))
+
+			owner.Bullets -= 1
+			e.playerAttributes(owner)
+		}
 	}
 	case "T": {
 		// move player target to x,y

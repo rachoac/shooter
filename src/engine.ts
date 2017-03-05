@@ -152,8 +152,13 @@ export default class Engine {
         this.processing.text("Score " + this.player.score, 10, 30);
         let hpBars = ''
         for (let i = 0; i < this.player.hp; i++) hpBars += '|'
-        this.processing.fill(255,255,255);
+        this.processing.fill(0,255,0);
         this.processing.text("HP " + hpBars, 10, 50);
+
+        let bulletBars = ''
+        for (let i = 0; i < this.player.bullets; i++) bulletBars += '|'
+        this.processing.fill(255,255,255);
+        this.processing.text("MP " + bulletBars, 10, 70);
 
         this.processing.fill(255, 0, 0);
         this.processing.text(this.bombs.join(""), this.processing.width - 100, 30);
@@ -240,13 +245,14 @@ export default class Engine {
     }
 
     private handlePlayerAttributes(data: string[]) {
-        const [ playerIDStr, scoreStr, hpStr ]: string[] = data
+        const [ playerIDStr, scoreStr, hpStr, bulletsStr ]: string[] = data
         const playerId = parseInt(playerIDStr)
         const tile = this.tilesContainer.getTileByID(playerId)
         if (tile) {
             var b: Avatar = <Avatar> tile
             b.setScore(parseInt(scoreStr))
             b.setHp(parseInt(hpStr))
+            b.setBullets(parseInt(bulletsStr))
         }
     }
 

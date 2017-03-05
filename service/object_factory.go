@@ -86,6 +86,8 @@ func (e *ObjectFactory) CreatePlayer(x, y int64) *Object {
 	player.AttackableBounds = e.humanoidAttackableBounds
 	player.HP = 10
 	player.MaxHP = 10
+	player.Bullets = 30
+	player.MaxBullets = 30
 
 	return player
 }

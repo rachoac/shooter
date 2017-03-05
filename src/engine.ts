@@ -123,6 +123,12 @@ export default class Engine {
         }
 
         this.processing.background(0, 0, 0);
+        if (!this.player) {
+            this.processing.fill(255, 0, 0);
+            this.processing.text("Waiting for connection...", this.processing.width/2 - 140, this.processing.height/2);
+            return
+        }
+
         if (!this.connected) {
             this.processing.fill(255, 0, 0);
             this.processing.text("Lost connection", this.processing.width/2 - 70, this.processing.height/2);

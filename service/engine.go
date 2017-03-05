@@ -381,7 +381,7 @@ func (e *Engine) MainLoop() {
 				lastCount = len(zombies)
 				log.Info("Zombie count ", lastCount)
 			}
-			if lastCount < 15 {
+			if lastCount < 10 {
 				// randomly spawn another one
 				if RandomBool() {
 					e.broadcastObject(e.spawnZombie())

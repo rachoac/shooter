@@ -403,6 +403,10 @@ func (e *Engine) MainLoop() {
 			}
 		}
 
+		if e.Tick % 350 == 0 {
+			WriteStringToFile(Int64ToString(e.HighScore) + ":" + e.HighScoreHolder, "score.txt")
+		}
+
 		// sleep for an interval
 		time.Sleep(30 * time.Millisecond)
 	}
@@ -548,6 +552,14 @@ func (e *Engine) spawnZombie() *Object {
 
 func (e *Engine) Initialize() {
 	log.Info("Initializing engine")
+
+	scoreStr, _ := ReadStringFromFile("score.txt")
+	if scoreStr != "" {
+		parts := strings.Split(scoreStr, ":")
+		e.HighScore = StringToInt64(parts[0])
+		e.HighScoreHolder = parts[1]
+	}
+
 	e.eventStream = make(chan []byte)
 	var i int64
 	for i = 0; i < e.TreeCount; i++ {

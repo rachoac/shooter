@@ -28,6 +28,7 @@ type Object struct {
 	AttackableBounds  func(self *Object) *Bounds
 	Damaging          bool
 	HP                int64
+	LastAttackTick    int64
 }
 
 func (o *Object) GetBounds() *Bounds {

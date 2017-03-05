@@ -46,6 +46,17 @@ func (e *Engine) SetHub(hub *Hub) {
 	e.hub = hub
 }
 
+func (e *Engine) attackPlayer(player *Object) {
+	player.HP -=1
+	e.broadcastExplosion(player.X, player.Y, RandomNumber(40, 60))
+	e.playerAttributes(player)
+
+	if  player.HP < 1 {
+		// killed
+		e.broadcastPlayedKilled(player)
+		e.RemoveAndBroadcast(player)
+	}
+}
 func (e *Engine) NewPlayer() int64 {
 	// random world position
 	x := RandomNumber(0, e.Width)
@@ -56,15 +67,7 @@ func (e *Engine) NewPlayer() int64 {
 		if other.ID == player.ID || other.OriginID == player.ID {
 			return
 		}
-		player.HP -=1
-		e.broadcastExplosion(player.X, player.Y, RandomNumber(40, 60))
-		e.playerAttributes(player)
-
-		if  player.HP < 1 {
-			// killed
-			e.broadcastPlayedKilled(player)
-			e.RemoveAndBroadcast(player)
-		}
+		e.attackPlayer(player)
 	}
 
 	e.ObjectContainer.WriteObject(player)
@@ -295,6 +298,18 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 			zombie.X = x
 			zombie.Y = y
 			e.broadcastMove(zombie)
+		}
+	}
+
+	i := Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+	if i < 20 {
+		// we're close enough for an attack
+		if e.Tick == 0 || e.Tick - zombie.LastAttackTick > int64(float64(100)/float64(zombie.Speed)) {
+			// enough time has elapsed since the last attack
+			zombie.LastAttackTick = e.Tick
+
+			// attack!
+			e.attackPlayer(closest)
 		}
 	}
 }

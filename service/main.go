@@ -25,7 +25,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	flag.Parse()
-	engine := NewEngine(1000, 800, 30, 5)
+	engine := NewEngine(1000, 800, 30, 0)
 	engine.Initialize()
 	hub := newHub(engine)
 	engine.SetHub(hub)

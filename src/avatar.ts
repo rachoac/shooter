@@ -8,6 +8,7 @@ export default class Avatar extends Tile {
     private height: number
     private name: string
     private f: any
+    private f2: any
     score: number
     hp: number
     bullets: number
@@ -17,6 +18,7 @@ export default class Avatar extends Tile {
         this.color = color
         this.height = height
         this.f = processing.createFont("monospace", 15);
+        this.f2 = processing.createFont("monospace", 8);
     }
 
     setScore(score: number) {
@@ -89,7 +91,17 @@ export default class Avatar extends Tile {
         this.processing.textFont(this.f)
         this.processing.fill(255, 255, 255)
         if (this.name) {
-            this.processing.text(this.name + " " + this.score, x - height/4, y - height/4);
+            let hpBars = ''
+            for (let i = 0; i < this.hp; i++) hpBars += '|'
+            this.processing.fill(0,255,0);
+            this.processing.text(this.name + " " + this.score, x - height/4, y - height/4 - 15);
+            this.processing.textFont(this.f2)
+            if (this.hp < 4) {
+                this.processing.fill(255, 255, 255)
+            } else {
+                this.processing.fill(0, 255, 0)
+            }
+            this.processing.text(hpBars, x - height/4, y - height/4);
         }
     }
 

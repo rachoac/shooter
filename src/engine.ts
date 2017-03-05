@@ -6,6 +6,7 @@ import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
 import Bullet from "./bullet";
 import Explosion from "./explosion";
+import Message from "./message";
 
 interface Client {
     send(value: string): void
@@ -23,12 +24,17 @@ export default class Engine {
     killed: boolean
     hiScore: number
     hiScoreHolder: string
+    mainFont: any
+    largeFont: any
 
     constructor(tilesContainer: TilesContainer, processing: any, playerName: string) {
         this.tilesContainer = tilesContainer;
         this.processing = processing
         this.bombs = ['!', '!', '!'];
         this.playerName = playerName
+
+        this.mainFont = processing.createFont("monospace", 15);
+        this.largeFont = processing.createFont("monospace", 30);
 
         this.mouseMovedHandling = this.mouseMovedHandling.bind(this)
         this.keyHandling = this.keyHandling.bind(this)
@@ -126,18 +132,21 @@ export default class Engine {
 
         this.processing.background(0, 0, 0);
         if (!this.player) {
+            this.processing.textFont(this.largeFont)
             this.processing.fill(255, 0, 0);
             this.processing.text("Waiting for connection...", this.processing.width/2 - 140, this.processing.height/2);
             return
         }
 
         if (!this.connected) {
+            this.processing.textFont(this.largeFont)
             this.processing.fill(255, 0, 0);
             this.processing.text("Lost connection", this.processing.width/2 - 70, this.processing.height/2);
             return
         }
 
         if (this.killed) {
+            this.processing.textFont(this.largeFont)
             this.processing.fill(255, 0, 0);
             this.processing.text("~YOU DIED, RIP!~", this.processing.width/2 - 180, this.processing.height/2);
             this.processing.text(" Final score: " + this.player.score, this.processing.width/2 - 180, this.processing.height/2 + 40);
@@ -151,6 +160,7 @@ export default class Engine {
         }
 
         // score
+        this.processing.textFont(this.mainFont)
         this.processing.fill(255, 0, 0);
         this.processing.text("Score " + this.player.score, 10, 30);
         let hpBars = ''
@@ -226,9 +236,6 @@ export default class Engine {
         processing.keyPressed = engine.keyHandling
         processing.mouseMoved = engine.mouseMovedHandling
 
-        let f = processing.createFont("monospace", 30);
-        processing.textFont(f)
-
         engine.restart()
         return engine
     }
@@ -272,6 +279,13 @@ export default class Engine {
         if (this.player && this.player.id === playerId) {
             // handle killed
             this.killed = true
+        }
+        const killedPlayer = this.tilesContainer.getTileByID(playerId)
+        if (killedPlayer) {
+            let playerAvatar: Avatar = <Avatar> killedPlayer
+            let rip = new Message(this.processing, this, "RIP " + playerAvatar.getName(), 300)
+            rip.setPosition(playerAvatar.x, playerAvatar.y);
+            this.tilesContainer.addTile(rip)
         }
     }
 

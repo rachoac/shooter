@@ -37,9 +37,7 @@
             }
 
             document.getElementById("canvas1").focus()
-            var f = processing.createFont("monospace", 30);
             processing.draw = function() {
-                processing.textFont(f)
                 engine.update()
             }
         }

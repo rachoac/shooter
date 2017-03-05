@@ -25,6 +25,10 @@ export default class Avatar extends Tile {
         this.score = score
     }
 
+    getName(): string {
+        return this.name
+    }
+
     setHp(hp: number) {
         this.hp = hp
     }

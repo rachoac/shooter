@@ -63,11 +63,12 @@ func (e *Engine) NewPlayer() int64 {
 	y := RandomNumber(0, e.Height)
 
 	player := e.ObjectFactory.CreatePlayer(x, y)
-	player.OnAttacked = func(other *Object) {
+	player.OnAttacked = func(other *Object) bool {
 		if other.ID == player.ID || other.OriginID == player.ID {
-			return
+			return false
 		}
 		e.attackPlayer(player)
+		return true
 	}
 
 	e.ObjectContainer.WriteObject(player)
@@ -495,7 +496,7 @@ func (e *Engine) spawnZombie() *Object {
 
 	zombie := e.ObjectFactory.CreateZombie(x, y)
 
-	zombie.OnAttacked = func(other *Object) {
+	zombie.OnAttacked = func(other *Object) bool {
 		// killed
 		e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
 		e.RemoveAndBroadcast(zombie)
@@ -510,6 +511,7 @@ func (e *Engine) spawnZombie() *Object {
 			// spawn more
 			e.broadcastObject(e.spawnZombie())
 		}
+		return true
 	}
 	e.ObjectContainer.WriteObject(zombie)
 	return zombie

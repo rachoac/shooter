@@ -26,7 +26,7 @@ type Object struct {
 	TargetObjectID    int64
 	Bounds            *Bounds
 	RecalculateBounds func(x int64, y int64) *Bounds
-	OnAttacked        func(other *Object)
+	OnAttacked        func(other *Object) bool
 	AttackableBounds  func(self *Object) *Bounds
 	Damaging          bool
 	HP                int64
@@ -93,7 +93,7 @@ func (oc *ObjectContainer) CreateBlankObject() *Object {
 	return &Object{
 		ID:               oc.IDSequence,
 		Speed:            1,
-		OnAttacked:       func(other *Object) {},
+		OnAttacked:       func(other *Object) bool { return false },
 		AttackableBounds: oc.DefaultAttackableBounds,
 	}
 }
@@ -184,7 +184,9 @@ func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *
 			bounds := other.AttackableBounds(other)
 			if bounds != nil && targetObjectBounds.Collision(bounds) {
 				fmt.Println("COLLIDED: ", other.Type)
-				other.OnAttacked(targetObject)
+				if other.OnAttacked(targetObject) {
+					return other
+				}
 			}
 		}
 

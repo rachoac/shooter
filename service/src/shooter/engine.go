@@ -658,7 +658,7 @@ func (e *Engine) spawnZombie(fast bool) *Object {
 			origin.Score += zombie.Speed
 			if zombie.Speed > 4 {
 				// you get bombs for fast zombies
-				origin.Bombs += 1 + RandomNumber(1, zombie.Speed)
+				origin.Bombs += 1 + RandomNumber(0, 1)
 				if origin.Bombs > origin.MaxBombs {
 					origin.Bombs = origin.MaxBombs
 				}

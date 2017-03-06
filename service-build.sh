@@ -1,5 +1,6 @@
-GOPATH=`pwd`/service
+export GOPATH=`pwd`/service
 cd service/src/shooter
+glide install
 go build -v
 cd -
 

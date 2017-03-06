@@ -56,9 +56,10 @@ func (e *Engine) attackPlayer(player *Object) {
 	if  player.HP < 1 {
 		// killed
 		e.broadcastPlayedKilled(player)
-		e.RemoveAndBroadcast(player)
+		e.removeAndBroadcast(player)
 	}
 }
+
 func (e *Engine) NewPlayer() int64 {
 	// random world position
 	x := RandomNumber(0, e.Width)
@@ -125,11 +126,11 @@ func (e *Engine) RemovePlayer(playerID int64) {
 	}
 	player := e.ObjectContainer.GetObject(playerID)
 	if player != nil {
-		e.RemoveAndBroadcast(player)
+		e.removeAndBroadcast(player)
 	}
 }
 
-func (e *Engine) RemoveAndBroadcast(object *Object) {
+func (e *Engine) removeAndBroadcast(object *Object) {
 	e.ObjectContainer.DeleteObject(object)
 	e.broadcast(e.ProtocolHandler.asRemove(object))
 }
@@ -150,7 +151,7 @@ func (e *Engine) TickleBullets() {
 			if (x == bullet.TargetX && y == bullet.TargetY) || bullet.Distance > 100 {
 				// target met
 				e.broadcastExplosion(x, y, 20)
-				e.RemoveAndBroadcast(bullet)
+				e.removeAndBroadcast(bullet)
 				return
 			}
 
@@ -164,7 +165,7 @@ func (e *Engine) TickleBullets() {
 			} else {
 				// break bullet & show explosion
 				e.broadcastExplosion(x, y, RandomNumber(20, 40))
-				e.RemoveAndBroadcast(bullet)
+				e.removeAndBroadcast(bullet)
 				return
 			}
 
@@ -208,6 +209,7 @@ func (e *Engine) TicklePlayers() {
 		go func(player *Object) {
 			defer wg.Done()
 
+			// replenish hp
 			if e.Tick - player.LastHealTick > 400 {
 				// heal periodically
 				if player.HP < player.MaxHP {
@@ -217,6 +219,7 @@ func (e *Engine) TicklePlayers() {
 				}
 			}
 
+			// replenish bullets
 			if e.Tick - player.LastBulletTick > 10 {
 				// add bullets periodically
 				if player.Bullets < player.MaxBullets {
@@ -226,6 +229,7 @@ func (e *Engine) TicklePlayers() {
 				}
 			}
 
+			// update position
 			x := player.X
 			y := player.Y
 
@@ -342,9 +346,9 @@ func (e *Engine) TickleZombies() {
 	players := e.ObjectContainer.GetObjectsByType("Player")
 
 	var wg sync.WaitGroup
-	wg.Add(len(zombies))
 
 	for _, zombie := range zombies {
+		wg.Add(1)
 		go func(zombie *Object) {
 			defer wg.Done()
 			e.processZombie(zombie, players)
@@ -546,7 +550,7 @@ func (e *Engine) spawnZombie(fast bool) *Object {
 	zombie.OnAttacked = func(other *Object) bool {
 		// killed
 		//e.broadcastExplosion(zombie.X, zombie.Y, RandomNumber(20, 40))
-		e.RemoveAndBroadcast(zombie)
+		e.removeAndBroadcast(zombie)
 
 		origin := e.ObjectContainer.GetObject(other.OriginID)
 		if origin != nil && origin.Type == "Player" {

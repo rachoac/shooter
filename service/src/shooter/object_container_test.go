@@ -23,10 +23,6 @@ func TestWriteObject(t *testing.T) {
 		assert.Equal(t, &object, dbObject)
 	}
 	{
-		objects := container.GetObjectsByCode("T")
-		assert.Len(t, objects, 1)
-	}
-	{
 		objects := container.GetObjectsByType("Type1")
 		assert.Len(t, objects, 1)
 	}
@@ -52,10 +48,6 @@ func TestDeleteObject(t *testing.T) {
 		assert.Nil(t, dbObject)
 	}
 	{
-		objects := container.GetObjectsByCode("T")
-		assert.Len(t, objects, 0)
-	}
-	{
 		objects := container.GetObjectsByType("Type1")
 		assert.Len(t, objects, 0)
 	}
@@ -78,10 +70,6 @@ func TestClearObjects(t *testing.T) {
 	{
 		dbObject := container.GetObject(1)
 		assert.Nil(t, dbObject)
-	}
-	{
-		objects := container.GetObjectsByCode("T")
-		assert.Len(t, objects, 0)
 	}
 	{
 		objects := container.GetObjectsByType("Type1")

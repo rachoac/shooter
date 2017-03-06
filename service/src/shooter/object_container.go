@@ -71,7 +71,6 @@ func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
 
 type ObjectContainer struct {
 	ObjectsByID   map[int64]*Object
-	ObjectsByCode map[string]map[int64]*Object
 	ObjectsByType map[string]map[int64]*Object
 	IDSequence    int64
 	S             sync.RWMutex
@@ -80,7 +79,6 @@ type ObjectContainer struct {
 func NewObjectContainer() *ObjectContainer {
 	container := ObjectContainer{}
 	container.ObjectsByID = make(map[int64]*Object)
-	container.ObjectsByCode = make(map[string]map[int64]*Object)
 	container.ObjectsByType = make(map[string]map[int64]*Object)
 	container.IDSequence = 100000
 
@@ -107,16 +105,6 @@ func (oc *ObjectContainer) WriteObject(object *Object) {
 	// index by ID
 	oc.ObjectsByID[object.ID] = object
 
-	// index by code
-	{
-		peers := oc.ObjectsByCode[object.Code]
-		if peers == nil {
-			peers = make(map[int64]*Object)
-			oc.ObjectsByCode[object.Code] = peers
-		}
-		peers[object.ID] = object
-	}
-
 	// index by type
 	{
 		peers := oc.ObjectsByType[object.Type]
@@ -132,12 +120,6 @@ func (oc *ObjectContainer) WriteObject(object *Object) {
 func (oc *ObjectContainer) DeleteObject(object *Object) {
 	oc.S.Lock()
 
-	// index by code
-	{
-		peers := oc.ObjectsByCode[object.Code]
-		delete(peers, object.ID)
-	}
-
 	// index by type
 	{
 		peers := oc.ObjectsByType[object.Type]
@@ -152,7 +134,6 @@ func (oc *ObjectContainer) DeleteObject(object *Object) {
 
 func (oc *ObjectContainer) DeleteAll() {
 	oc.ObjectsByID = make(map[int64]*Object)
-	oc.ObjectsByCode = make(map[string]map[int64]*Object)
 	oc.ObjectsByType = make(map[string]map[int64]*Object)
 }
 
@@ -160,12 +141,6 @@ func (oc *ObjectContainer) GetObject(objectID int64) *Object {
 	oc.S.RLock()
 	defer oc.S.RUnlock()
 	return oc.ObjectsByID[objectID]
-}
-
-func (oc *ObjectContainer) GetObjectsByCode(objectCode string) map[int64]*Object {
-	oc.S.RLock()
-	defer oc.S.RUnlock()
-	return oc.ObjectsByCode[objectCode]
 }
 
 func (oc *ObjectContainer) GetObjectsByType(objectType string) map[int64]*Object {
@@ -177,16 +152,12 @@ func (oc *ObjectContainer) GetObjectsByType(objectType string) map[int64]*Object
 func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *Object {
 	targetObjectBounds := targetObject.GetBounds()
 	for _, other := range oc.ObjectsByID {
-		if other == nil || targetObject == nil {
-			continue
-		}
-		if other.ID == targetObject.ID {
+		if other == nil || targetObject == nil || other.ID == targetObject.ID {
 			continue
 		}
 		if targetObject.Damaging {
 			bounds := other.AttackableBounds(other)
 			if bounds != nil && targetObjectBounds.Collision(bounds) {
-				fmt.Println("COLLIDED: ", other.Type)
 				if other.OnAttacked(targetObject) {
 					return other
 				}

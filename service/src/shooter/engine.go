@@ -451,7 +451,7 @@ func (e *Engine) MainLoop() {
 		}
 
 		var wg sync.WaitGroup
-		wg.Add(2)
+		wg.Add(5)
 		func() {
 			defer wg.Done()
 			e.TickleZombies()
@@ -460,11 +460,19 @@ func (e *Engine) MainLoop() {
 			defer wg.Done()
 			e.TicklePlayers()
 		}()
+		func() {
+			defer wg.Done()
+			e.TickleBullets()
+		}()
+		func() {
+			defer wg.Done()
+			e.TickleBombs()
+		}()
+		func() {
+			defer wg.Done()
+			e.TickleExplosions()
+		}()
 		wg.Wait()
-
-		e.TickleBullets()
-		e.TickleBombs()
-		e.TickleExplosions()
 
 		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 		if e.Tick % 60 == 0 {

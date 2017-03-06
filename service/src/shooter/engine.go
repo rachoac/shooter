@@ -390,8 +390,9 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 		y -= zombie.Speed
 	}
 
+	outOfBounds := zombie.X < -15 || zombie.Y < -15 || zombie.Y > e.Height + 15 || zombie.X > e.Width + 15
 	collisionObject := e.ObjectContainer.CollisionAt(zombie, x, y)
-	if collisionObject == nil || !collisionObject.Blocking {
+	if outOfBounds || collisionObject == nil || !collisionObject.Blocking {
 		if zombie.X != x || zombie.Y != y {
 			// only broadcast move if change in position
 			zombie.X = x

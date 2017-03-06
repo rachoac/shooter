@@ -66,6 +66,12 @@ export default class Engine {
         this.client.send(`F:${x}:${y}:${targetX}:${targetY}:${speed}:${man.id}`)
     }
 
+    static calcDistance(x1: number, y1: number, x2: number, y2: number) {
+        let a = x1 - x2
+        let b = y1 - y2
+
+        return Math.sqrt(a * a + b * b)
+    }
     keyHandling() {
         let keyCode = this.processing.keyCode
         let man = this.player;
@@ -153,14 +159,20 @@ export default class Engine {
             return
         }
 
+        if (Engine.calcDistance(this.player.x, this.player.y, this.processing.mouseX, this.processing.mouseY) > 220) {
+            this.processing.stroke(0, 173, 0, 200);
+            this.processing.strokeWeight(1);
+            this.processing.line(this.player.x, this.player.y - 20, this.processing.mouseX, this.processing.mouseY)
+        }
+
         for ( let i = 0; i < tiles.length; i++ ) {
             let tile = tiles[i];
             tile.render();
         }
 
         // score
-        this.processing.textFont(this.mainFont)
         this.processing.fill(255, 0, 0);
+        this.processing.textFont(this.mainFont)
         this.processing.text("Score " + this.player.score, 10, 30);
         let hpBars = ''
         for (let i = 0; i < this.player.hp; i++) hpBars += '|'

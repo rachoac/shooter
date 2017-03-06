@@ -395,10 +395,13 @@ func (e *Engine) MainLoop() {
 				log.Info("Zombie count ", lastCount)
 			}
 			if lastCount < 35 {
-				// randomly spawn another one
-				if RandomBool() {
-					e.broadcastObject(e.spawnZombie())
-					e.broadcastObject(e.spawnZombie())
+				if lastCount < 5 && RandomBool() {
+					e.spawnAndBroadcastZombies(true, 5)
+				} else {
+					// randomly spawn another one
+					if RandomBool() {
+						e.spawnAndBroadcastZombies(false, 2)
+					}
 				}
 			}
 		}
@@ -509,7 +512,14 @@ func (e *Engine) handleHighScore(player *Object) {
 		e.broadcast(e.ProtocolHandler.asHighScore(e.HighScore, e.HighScoreHolder))
 	}
 }
-func (e *Engine) spawnZombie() *Object {
+
+func (e *Engine) spawnAndBroadcastZombies(fast bool, amount int64) {
+	for i := 0; i < int(amount); i++ {
+		e.broadcastObject(e.spawnZombie(fast))
+	}
+}
+
+func (e *Engine) spawnZombie(fast bool) *Object {
 	offset := int64(20)
 	x := int64(0)
 	y := int64(0)
@@ -526,7 +536,12 @@ func (e *Engine) spawnZombie() *Object {
 		x = e.Width + offset
 	}
 
-	zombie := e.ObjectFactory.CreateZombie(x, y)
+	var zombie *Object
+	if fast {
+		zombie = e.ObjectFactory.CreateFastZombie(x, y)
+	} else {
+		zombie = e.ObjectFactory.CreateZombie(x, y)
+	}
 
 	zombie.OnAttacked = func(other *Object) bool {
 		// killed
@@ -535,14 +550,14 @@ func (e *Engine) spawnZombie() *Object {
 
 		origin := e.ObjectContainer.GetObject(other.OriginID)
 		if origin != nil && origin.Type == "Player" {
-			origin.Score += 1
+			origin.Score += zombie.Speed
 			e.playerAttributes(origin)
 			e.handleHighScore(origin)
 		}
 
 		if RandomBool() {
 			// spawn more
-			e.broadcastObject(e.spawnZombie())
+			e.spawnAndBroadcastZombies(false, 1)
 		}
 		return true
 	}
@@ -571,7 +586,7 @@ func (e *Engine) Initialize() {
 	}
 
 	for i = 0; i < e.ZombieCount; i++ {
-		e.spawnZombie()
+		e.spawnZombie(false)
 	}
 
 	e.Running = true

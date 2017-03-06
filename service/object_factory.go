@@ -73,6 +73,12 @@ func (e *ObjectFactory) CreateZombie(x int64, y int64) *Object {
 	zombie.HP = 1
 	return zombie
 }
+func (e *ObjectFactory) CreateFastZombie(x int64, y int64) *Object {
+	zombie := e.CreateZombie(x, y)
+	zombie.Speed = 6
+	zombie.Height = 60
+	return zombie
+}
 
 func (e *ObjectFactory) CreatePlayer(x, y int64) *Object {
 	player := e.ObjectContainer.CreateBlankObject()

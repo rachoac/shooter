@@ -28,9 +28,20 @@ export default class Explosion extends Tile {
     render() {
         let x = this.x
         let y = this.y
-        this.processing.stroke(255, 255, 255)
-        this.processing.fill(this.processing.random(0,255), this.processing.random(0,255), this.processing.random(0, 255))
-        this.processing.ellipse(x, y, this.currentSize, this.currentSize)
+
+        if (this.currentSize > 30) {
+            this.processing.stroke(200, 0, 0)
+            this.processing.fill(200, 0, 0)
+            this.processing.ellipse(x, y, this.currentSize, this.currentSize)
+            this.processing.stroke(255, 0, 0)
+            this.processing.fill(255, 0, 0)
+            this.processing.ellipse(x, y, this.currentSize, this.currentSize * 0.90)
+        } else {
+            this.processing.stroke(255, 255, 255)
+            this.processing.fill(this.processing.random(0,255), this.processing.random(0,255), this.processing.random(0, 255))
+            this.processing.ellipse(x, y, this.currentSize, this.currentSize)
+        }
+
     }
 
     update() {

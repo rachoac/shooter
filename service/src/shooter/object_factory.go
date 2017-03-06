@@ -136,7 +136,7 @@ func (e *ObjectFactory) CreateControlledExplosion(x, y, radius int64) *Object {
 	explosion.Height = 1
 	explosion.Distance = radius
 	explosion.Damaging = true
-	explosion.Blocking = true
+	explosion.Blocking = false
 	explosion.Damage = 3
 	explosion.RecalculateBounds = func(x int64, y int64) *Bounds {
 		currentX := float64(x)

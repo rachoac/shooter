@@ -177,10 +177,11 @@ func (e *Engine) TickleBullets() {
 }
 
 func (e *Engine) explodeBomb(bomb *Object) {
-	explosion := e.ObjectFactory.CreateControlledExplosion(bomb.X, bomb.Y, RandomNumber(80, 100))
+	explosion := e.ObjectFactory.CreateControlledExplosion(bomb.X, bomb.Y, RandomNumber(120, 150))
 	explosion.CreationTick = e.Tick
 	explosion.OriginID = bomb.OriginID
 	e.ObjectContainer.WriteObject(explosion)
+	e.broadcastExplosion(explosion.X, explosion.Y, explosion.Distance)
 	e.broadcastObject(explosion)
 }
 
@@ -188,7 +189,7 @@ func (e *Engine) TickleExplosions() {
 	explosions := e.ObjectContainer.GetObjectsByType("Explosion")
 
 	var wg sync.WaitGroup
-	maxExplosionDuration := int64(15)
+	maxExplosionDuration := int64(30)
 	for _, explosion := range explosions {
 		wg.Add(1)
 		go func(explosion *Object) {
@@ -203,7 +204,7 @@ func (e *Engine) TickleExplosions() {
 
 			explosion.Height += 15
 			explosion.ForceRecalculateBounds()
-			e.broadcast(e.ProtocolHandler.asExplosionAttributes(explosion))
+			//e.broadcast(e.ProtocolHandler.asExplosionAttributes(explosion))
 			e.ObjectContainer.CollisionAt(explosion, explosion.X, explosion.Y)
 		}(explosion)
 	}

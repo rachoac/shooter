@@ -471,7 +471,7 @@ func (e *Engine) MainLoop() {
 				lastCount = len(zombies)
 				log.Info("Zombie count ", lastCount)
 			}
-			if lastCount < 35 {
+			if lastCount < 25 {
 				if lastCount < 5 && RandomBool() {
 					e.spawnAndBroadcastZombies(true, 5)
 				} else {

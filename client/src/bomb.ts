@@ -36,8 +36,8 @@ export default class Bomb extends Tile {
         let height = this.height
         let x = this.x
         let y = this.y
-        this.processing.stroke(this.color.r, this.color.g, this.color.b)
-        this.processing.fill(0, 255, 255)
+        this.processing.fill(this.color.r, this.color.g, this.color.b)
+        this.processing.stroke(0, 255, 255)
         this.processing.ellipse(x, y, height, height)
     }
 

@@ -314,7 +314,7 @@ export default class Engine {
         }
     }
     private handleNewObject(data: string[]) {
-        const [ objectID, objectType, x, y, height, speed, name, score ]: string[] = data
+        const [ objectID, objectType, x, y, height, speed, name, score, origin ]: string[] = data
         let processing = this.processing
         switch(objectType) {
             case 'T': {
@@ -353,7 +353,8 @@ export default class Engine {
             }
             case 'X': {
                 console.log("MAKING BOMB ", x, y, "id:", objectID)
-                let bomb = new Bomb(processing, new Color(255, 0, 0, 0), 8);
+                let originId = parseInt(origin)
+                let bomb = new Bomb(processing,  originId == this.sessionID ? new Color(255, 255, 255, 0) : new Color(255, 0, 0, 0), 8);
                 bomb.id = parseInt(objectID)
                 bomb.setPosition(parseInt(x), parseInt(y));
                 bomb.setRole("bomb");

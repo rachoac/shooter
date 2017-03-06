@@ -15,7 +15,8 @@ func (e *ProtocolHandler) asNew(object *Object) string {
 		Int64ToString(object.Height) + ":" +
 		Int64ToString(object.Speed) + ":" +
 		object.Name + ":" +
-		Int64ToString(object.Score)
+		Int64ToString(object.Score) + ":" +
+		Int64ToString(object.OriginID)
 }
 
 func (e *ProtocolHandler) asMove(object *Object) string {

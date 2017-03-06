@@ -48,10 +48,10 @@ func (e *Engine) SetHub(hub *Hub) {
 	e.hub = hub
 }
 
-func (e *Engine) attackPlayer(player *Object) {
-	player.HP -=1
+func (e *Engine) attackPlayer(player *Object, attacker *Object) {
+	player.HP -= attacker.Damage
 	e.broadcastExplosion(player.X, player.Y, RandomNumber(40, 60))
-	e.playerAttributes(player)
+	e.broadcastPlayerAttributes(player)
 
 	if  player.HP < 1 {
 		// killed
@@ -70,7 +70,7 @@ func (e *Engine) NewPlayer() int64 {
 		if other.ID == player.ID || other.OriginID == player.ID {
 			return false
 		}
-		e.attackPlayer(player)
+		e.attackPlayer(player, other)
 		return true
 	}
 
@@ -81,11 +81,11 @@ func (e *Engine) NewPlayer() int64 {
 }
 
 func (e *Engine) broadcast(message string) {
-	e.hub.sendToAll([]byte(message))
+	go e.hub.sendToAll([]byte(message))
 }
 
 func (e *Engine) sendToPlayer(playerID int64, message string) {
-	e.hub.send(playerID, []byte(message))
+	go e.hub.send(playerID, []byte(message))
 }
 
 func (e *Engine) broadcastObject(object *Object) {
@@ -98,7 +98,7 @@ func (e *Engine) sendWorld(playerID int64) {
 	}
 
 	newPlayer := e.ObjectContainer.GetObject(playerID)
-	e.playerAttributes(newPlayer)
+	e.broadcastPlayerAttributes(newPlayer)
 	e.sendToPlayer(playerID, e.ProtocolHandler.asHighScore(e.HighScore, e.HighScoreHolder))
 
 	// annouce new player to other players
@@ -176,6 +176,73 @@ func (e *Engine) TickleBullets() {
 	wg.Wait()
 }
 
+func (e *Engine) explodeBomb(bomb *Object) {
+	explosion := e.ObjectFactory.CreateControlledExplosion(bomb.X, bomb.Y, RandomNumber(80, 100))
+	explosion.CreationTick = e.Tick
+	explosion.OriginID = bomb.OriginID
+	e.ObjectContainer.WriteObject(explosion)
+	e.broadcastObject(explosion)
+}
+
+func (e *Engine) TickleExplosions() {
+	explosions := e.ObjectContainer.GetObjectsByType("Explosion")
+
+	var wg sync.WaitGroup
+	maxExplosionDuration := int64(15)
+	for _, explosion := range explosions {
+		wg.Add(1)
+		go func(explosion *Object) {
+			defer wg.Done()
+
+			currentTick := e.Tick - explosion.CreationTick
+			if currentTick > maxExplosionDuration {
+				// remove it
+				e.removeAndBroadcast(explosion)
+				return
+			}
+
+			explosion.Height += 15
+			explosion.ForceRecalculateBounds()
+			e.broadcast(e.ProtocolHandler.asExplosionAttributes(explosion))
+			e.ObjectContainer.CollisionAt(explosion, explosion.X, explosion.Y)
+		}(explosion)
+	}
+	wg.Wait()
+}
+
+func (e *Engine) TickleBombs() {
+	bullets := e.ObjectContainer.GetObjectsByType("Bomb")
+
+	var wg sync.WaitGroup
+	toRemove := []*Object{}
+	for _, bomb := range bullets {
+		wg.Add(1)
+		go func(bomb *Object) {
+			defer wg.Done()
+
+			if e.Tick - bomb.CreationTick > bomb.Speed {
+				// timeout -- blow up
+				e.explodeBomb(bomb)
+				toRemove = append(toRemove, bomb)
+				return
+			}
+
+			collisionObject := e.ObjectContainer.CollisionAt(bomb, bomb.X, bomb.Y)
+			if collisionObject != nil && collisionObject.ID != bomb.OriginID {
+				// trigger bomb
+				e.explodeBomb(bomb)
+				toRemove = append(toRemove, bomb)
+			}
+
+		}(bomb)
+	}
+	wg.Wait()
+
+	for _, object := range toRemove {
+		e.removeAndBroadcast(object)
+	}
+}
+
 func (e *Engine) calcAdjustedPosition(object *Object, x int64, y int64) (int64, int64) {
 	if x < object.TargetX {
 		x += object.Speed
@@ -214,7 +281,7 @@ func (e *Engine) TicklePlayers() {
 				// heal periodically
 				if player.HP < player.MaxHP {
 					player.HP += 1
-					e.playerAttributes(player)
+					e.broadcastPlayerAttributes(player)
 					player.LastHealTick = e.Tick
 				}
 			}
@@ -224,7 +291,7 @@ func (e *Engine) TicklePlayers() {
 				// add bullets periodically
 				if player.Bullets < player.MaxBullets {
 					player.Bullets += 1
-					e.playerAttributes(player)
+					e.broadcastPlayerAttributes(player)
 					player.LastBulletTick = e.Tick
 				}
 			}
@@ -240,12 +307,15 @@ func (e *Engine) TicklePlayers() {
 
 			x, y = e.calcAdjustedPosition(player, x, y)
 
-			if e.ObjectContainer.CollisionAt(player, x, y) == nil {
+			collisionObject := e.ObjectContainer.CollisionAt(player, x, y)
+			if collisionObject == nil || !collisionObject.Blocking {
 				if player.X != x || player.Y != y {
 					player.X = x
 					player.Y = y
 					e.broadcastMove(player)
 				}
+
+				// todo - trigger bombs and such
 			}
 
 		}(player)
@@ -319,7 +389,8 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 		y -= zombie.Speed
 	}
 
-	if e.ObjectContainer.CollisionAt(zombie, x, y) == nil {
+	collisionObject := e.ObjectContainer.CollisionAt(zombie, x, y)
+	if collisionObject == nil || !collisionObject.Blocking {
 		if zombie.X != x || zombie.Y != y {
 			// only broadcast move if change in position
 			zombie.X = x
@@ -336,7 +407,7 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 			zombie.LastAttackTick = e.Tick
 
 			// attack!
-			e.attackPlayer(closest)
+			e.attackPlayer(closest, zombie)
 		}
 	}
 }
@@ -390,6 +461,8 @@ func (e *Engine) MainLoop() {
 		wg.Wait()
 
 		e.TickleBullets()
+		e.TickleBombs()
+		e.TickleExplosions()
 
 		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
 		if e.Tick % 60 == 0 {
@@ -470,7 +543,25 @@ func (e *Engine) parseEvent(event string) {
 			e.broadcast(e.ProtocolHandler.asNew(object))
 
 			owner.Bullets -= 1
-			e.playerAttributes(owner)
+			e.broadcastPlayerAttributes(owner)
+		}
+	}
+	case "B": {
+		// drop a bomb at player location
+		ownerID :=  StringToInt64(parts[1])
+		owner := e.ObjectContainer.GetObject(ownerID)
+		if owner != nil && owner.Bombs - 1 >= 0 {
+			object := e.ObjectFactory.CreateBomb(owner.X, owner.Y - 25, 100)
+			object.CreationTick = e.Tick
+			object.OriginID = ownerID
+
+			e.ObjectContainer.WriteObject(object)
+
+			// announce the bomb
+			e.broadcast(e.ProtocolHandler.asNew(object))
+
+			owner.Bombs -= 1
+			e.broadcastPlayerAttributes(owner)
 		}
 	}
 	case "T": {
@@ -500,7 +591,7 @@ func (e *Engine) ListenToEvents() {
 	}
 }
 
-func (e *Engine) playerAttributes(player *Object) {
+func (e *Engine) broadcastPlayerAttributes(player *Object) {
 	e.broadcast(e.ProtocolHandler.asPlayerAttributes(player))
 }
 
@@ -555,7 +646,15 @@ func (e *Engine) spawnZombie(fast bool) *Object {
 		origin := e.ObjectContainer.GetObject(other.OriginID)
 		if origin != nil && origin.Type == "Player" {
 			origin.Score += zombie.Speed
-			e.playerAttributes(origin)
+			if zombie.Speed > 4 {
+				// you get bombs for fast zombies
+				origin.Bombs += 1 + RandomNumber(1, zombie.Speed)
+				if origin.Bombs > origin.MaxBombs {
+					origin.Bombs = origin.MaxBombs
+				}
+			}
+
+			e.broadcastPlayerAttributes(origin)
 			e.handleHighScore(origin)
 		}
 

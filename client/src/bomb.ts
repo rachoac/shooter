@@ -1,23 +1,20 @@
-import Entity from "./entity";
 import Color from "./color";
-import Engine from "./engine";
 import Tile from "./tile";
-import Explosion from "./explosion";
 
-export default class Bomb extends Entity {
-    constructor(processing: any, engine: Engine, color: Color, height: number, speed: number) {
-        super(processing, engine, color, height, speed, "bomb")
+export default class Bomb extends Tile {
+
+    private color: Color
+    private height: number
+
+    constructor(processing: any, color: Color, height: number) {
+        super(processing, "bomb")
+        this.color = color
+        this.height = height
+        this.noCollision = true
     }
 
-    onTargetMet() {
-    }
-
-    onCollision(collidedTile: Tile) {
-        let boom = new Explosion(this.processing, this.engine, new Color(255, 255, 255, 255), 180, 8)
-        boom.setPosition(this.x, this.y)
-        this.tilesContainer.addTile(boom)
-        this.tilesContainer.removeTile(this)
-        this.engine.damage(collidedTile)
+    update() {
+        return true
     }
 
     calcBounds(x: number, y: number) {

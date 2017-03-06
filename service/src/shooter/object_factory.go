@@ -94,8 +94,66 @@ func (e *ObjectFactory) CreatePlayer(x, y int64) *Object {
 	player.MaxHP = 10
 	player.Bullets = 30
 	player.MaxBullets = 30
+	player.Bombs = 5
+	player.MaxBombs = 8
 
 	return player
+}
+
+func (e *ObjectFactory) CreateBomb(x, y, speed int64) *Object {
+	bomb := e.ObjectContainer.CreateBlankObject()
+	bomb.Code = "X"
+	bomb.Type = "Bomb"
+	bomb.X = x
+	bomb.Y = y
+	bomb.Speed = speed
+	bomb.Height = 15
+	bomb.Damaging = false
+	bomb.Blocking = false
+	bomb.RecalculateBounds = func(x int64, y int64) *Bounds {
+		currentX := float64(x)
+		currentY := float64(y)
+
+		height := float64(bomb.Height)
+		boundWidth := height * 0.25
+		boundX := currentX - boundWidth * 0.5
+		boundY := currentY - boundWidth * 0.5
+		boundX2 := boundX + boundWidth
+		boundY2 := boundY + boundWidth
+
+		return NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
+
+	}
+	return bomb
+}
+
+func (e *ObjectFactory) CreateControlledExplosion(x, y, radius int64) *Object {
+	explosion := e.ObjectContainer.CreateBlankObject()
+	explosion.Code = "C"
+	explosion.Type = "Explosion"
+	explosion.X = x
+	explosion.Y = y
+	explosion.Height = 1
+	explosion.Distance = radius
+	explosion.Damaging = true
+	explosion.Blocking = true
+	explosion.Damage = 3
+	explosion.RecalculateBounds = func(x int64, y int64) *Bounds {
+		currentX := float64(x)
+		currentY := float64(y)
+
+		height := float64(explosion.Height)
+		boundWidth := height * 0.25
+		boundX := currentX - boundWidth * 0.5
+		boundY := currentY - boundWidth * 0.5
+		boundX2 := boundX + boundWidth
+		boundY2 := boundY + boundWidth
+
+		bounds := NewBounds(int64(boundX), int64(boundY), int64(boundX2), int64(boundY2))
+		bounds.recompute()
+		return bounds
+	}
+	return explosion
 }
 
 func (e *ObjectFactory) CreateBullet(x, y, speed int64) *Object {

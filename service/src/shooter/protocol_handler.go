@@ -35,7 +35,13 @@ func (e *ProtocolHandler) asPlayerAttributes(player *Object) string {
 	return "A:" + Int64ToString(player.ID) + ":" +
 		Int64ToString(player.Score) + ":" +
 		Int64ToString(player.HP) + ":" +
-		Int64ToString(player.Bullets)
+		Int64ToString(player.Bullets) + ":" +
+		Int64ToString(player.Bombs)
+}
+
+func (e *ProtocolHandler) asExplosionAttributes(explosion *Object) string {
+	return "x:" + Int64ToString(explosion.ID) + ":" +
+		Int64ToString(explosion.Height)
 }
 
 func (e *ProtocolHandler) asPlayerKilled(player *Object) string {

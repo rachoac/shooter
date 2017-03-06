@@ -12,6 +12,7 @@ export default class Avatar extends Tile {
     score: number
     hp: number
     bullets: number
+    bombs: number
 
     constructor(processing: any, color: Color, height: number) {
         super(processing, "avatar")
@@ -35,6 +36,10 @@ export default class Avatar extends Tile {
 
     setBullets(bullets: number) {
         this.bullets = bullets
+    }
+
+    setBombs(bombs: number) {
+        this.bombs = bombs
     }
 
     setName(name: string) {

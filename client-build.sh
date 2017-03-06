@@ -1,3 +1,4 @@
+set -xe
 cd client
 npm install
 npm run build

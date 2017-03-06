@@ -32,13 +32,19 @@ type Object struct {
 	MaxHP             int64
 	Bullets		  int64
 	MaxBullets	  int64
+	Bombs		  int64
+	MaxBombs	  int64
 	LastAttackTick    int64
 	LastHealTick      int64
 	LastBulletTick    int64
+	LastEventTick     int64
+	CreationTick      int64
+	Blocking	  bool
+	Damage		  int64
 }
 
 func (o *Object) GetBounds() *Bounds {
-	if o.LastX == o.X && o.LastY == o.Y {
+	if o.LastX  != -1 && o.LastY != -1 && o.LastX == o.X && o.LastY == o.Y {
 		return o.Bounds
 	}
 
@@ -47,6 +53,10 @@ func (o *Object) GetBounds() *Bounds {
 	o.Bounds = o.RecalculateBounds(o.X, o.Y)
 
 	return o.Bounds
+}
+
+func (o *Object) ForceRecalculateBounds() {
+	o.Bounds = o.RecalculateBounds(o.X, o.Y)
 }
 
 func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
@@ -92,7 +102,11 @@ func (oc *ObjectContainer) CreateBlankObject() *Object {
 	oc.IDSequence = oc.IDSequence + 1
 	return &Object{
 		ID:               oc.IDSequence,
+		LastX:		  -1,
+		LastY:		  -1,
 		Speed:            1,
+		Damage:		  1,
+		Blocking:	  true,
 		OnAttacked:       func(other *Object) bool { return false },
 		AttackableBounds: oc.DefaultAttackableBounds,
 	}
@@ -156,8 +170,8 @@ func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *
 		}
 		if targetObject.Damaging {
 			bounds := other.AttackableBounds(other)
-			if bounds != nil && targetObjectBounds.Collision(bounds) {
-				if other.OnAttacked(targetObject) {
+			if bounds != nil && targetObjectBounds.Collision(bounds){
+				if other.OnAttacked(targetObject) && targetObject.Blocking && other.Blocking {
 					return other
 				}
 			}

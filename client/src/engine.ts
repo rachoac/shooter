@@ -5,7 +5,9 @@ import Entity from './entity'
 import Avatar from './avatar'
 import TilesContainer from './tilescontainer'
 import Bullet from "./bullet";
+import Bomb from "./bomb";
 import Explosion from "./explosion";
+import ControlledExplosion from "./controlled_explosion";
 import Message from "./message";
 
 interface Client {
@@ -14,7 +16,6 @@ interface Client {
 
 export default class Engine {
     tilesContainer: TilesContainer
-    bombs: string[]
     player: Avatar
     processing: any
     private client: Client
@@ -30,7 +31,6 @@ export default class Engine {
     constructor(tilesContainer: TilesContainer, processing: any, playerName: string) {
         this.tilesContainer = tilesContainer;
         this.processing = processing
-        this.bombs = ['!', '!', '!'];
         this.playerName = playerName
 
         this.mainFont = processing.createFont("monospace", 15);
@@ -102,9 +102,8 @@ export default class Engine {
         }
 
         if (keyCode === 32) {
-            this.bombs.shift();
+            this.client.send(`B:${this.sessionID}`)
         }
-        // man.setTarget(x, y);
     }
 
     mouseMovedHandling() {
@@ -179,8 +178,9 @@ export default class Engine {
         }
 
         this.processing.fill(255, 0, 0);
-        this.processing.text(this.bombs.join(""), this.processing.width - 100, 30);
-
+        let bombBars = ''
+        for (let i = 0; i < this.player.bombs; i++) bombBars += '!'
+        this.processing.text(bombBars, this.processing.width - 100, 30);
     }
 
     onSocketClose(evt: any) {
@@ -208,6 +208,7 @@ export default class Engine {
                 case 'R': this.handleRemoveObject(data); break;
                 case 'X': this.handleExplosion(data); break;
                 case 'A': this.handlePlayerAttributes(data); break;
+                case 'x': this.handleExplosionAttributes(data); break;
                 case 'K': this.handlePlayerKilled(data); break;
                 case 'Y': this.handleHighScore(data); break;
                 default:
@@ -261,8 +262,17 @@ export default class Engine {
         this.tilesContainer.addTile(boom)
     }
 
+    private handleExplosionAttributes(data: string[]) {
+        const [ explosionID, height ]: string[] = data
+        const tile = this.tilesContainer.getTileByID(parseInt(explosionID))
+        if (tile) {
+            var b: ControlledExplosion = <ControlledExplosion> tile
+            b.height = parseInt(height)
+        }
+    }
+
     private handlePlayerAttributes(data: string[]) {
-        const [ playerIDStr, scoreStr, hpStr, bulletsStr ]: string[] = data
+        const [ playerIDStr, scoreStr, hpStr, bulletsStr, bombsStr ]: string[] = data
         const playerId = parseInt(playerIDStr)
         const tile = this.tilesContainer.getTileByID(playerId)
         if (tile) {
@@ -270,6 +280,7 @@ export default class Engine {
             b.setScore(parseInt(scoreStr))
             b.setHp(parseInt(hpStr))
             b.setBullets(parseInt(bulletsStr))
+            b.setBombs(parseInt(bombsStr))
         }
     }
 
@@ -338,6 +349,24 @@ export default class Engine {
                 bullet.setPosition(parseInt(x), parseInt(y));
                 bullet.setRole("bullet");
                 this.tilesContainer.addTile(bullet);
+                break;
+            }
+            case 'X': {
+                console.log("MAKING BOMB ", x, y, "id:", objectID)
+                let bomb = new Bomb(processing, new Color(255, 0, 0, 0), 8);
+                bomb.id = parseInt(objectID)
+                bomb.setPosition(parseInt(x), parseInt(y));
+                bomb.setRole("bomb");
+                this.tilesContainer.addTile(bomb);
+                break;
+            }
+            case 'C': {
+                console.log("MAKING CONTROLLED EXPLOSION ", x, y, "id:", objectID)
+                let explosion = new ControlledExplosion(processing, this, parseInt(height));
+                explosion.id = parseInt(objectID)
+                explosion.setPosition(parseInt(x), parseInt(y));
+                explosion.setRole("controlled_explosion");
+                this.tilesContainer.addTile(explosion);
                 break;
             }
             case 'P': {

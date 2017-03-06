@@ -1,3 +1,4 @@
+set -xe
 export GOPATH=`pwd`/service
 cd service/src/shooter
 glide install

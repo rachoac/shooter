@@ -1,0 +1,8 @@
+hash: 27d9f47b571db454110450a087675bd080b8fb147d36b100e05e830e1ab6fc5e
+updated: 2017-03-02T00:35:51.447902428-08:00
+imports:
+- name: github.com/gorilla/websocket
+  version: 4873052237e4eeda85cf50c071ef33836fe8e139
+- name: github.com/Sirupsen/logrus
+  version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
+devImports: []

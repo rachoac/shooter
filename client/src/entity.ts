@@ -56,28 +56,27 @@ abstract class Entity extends Tile {
             return
         }
 
-        let distance1 = Entity.calcDistance(x, y, targetX, targetY)
         let increment = this.speed
 
         let newX = x
         let newY = y
 
         if (x < targetX) {
-            newX += increment
+            newX += Math.min(increment, Math.abs(targetX - x))
         }
         if (x > targetX) {
-            newX -= increment
+            newX -= Math.min(increment, Math.abs(targetX - x))
         }
         if (y < targetY) {
-            newY += increment
+            newY += Math.min(increment, Math.abs(targetY - y))
         }
         if (y > targetY) {
-            newY -= increment
+            newY -= Math.min(increment, Math.abs(targetY - y))
         }
 
         let distance2 = Entity.calcDistance(newX, newY, targetX, targetY)
 
-        if (distance2 > distance1) {
+        if (distance2 < increment) {
             newX = targetX
             newY = targetY
         }
@@ -87,7 +86,7 @@ abstract class Entity extends Tile {
             this.onCollision(collidedTile)
             return
         }
-        this.setPosition(newX, newY)
+        this.engine.updatePosition(this, newX, newY)
 
         return true
     }
@@ -113,7 +112,7 @@ abstract class Entity extends Tile {
     abstract onTargetMet(): void
 
     onCollision(collidedTile: Tile) {
-        console.log(collidedTile)
+        if(collidedTile){}
     }
 }
 

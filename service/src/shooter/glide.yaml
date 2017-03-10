@@ -1,0 +1,4 @@
+package: github.com/rachoac/shooter
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/gorilla/websocket

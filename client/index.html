@@ -1,0 +1,56 @@
+<html>
+<head>
+    <script src="processing.js"></script>
+    <script src="chance.js"></script>
+    <link href="style.css" rel="stylesheet">
+    <script id="script1" type="text/javascript" src="public/build/main.js"></script>
+</head>
+<body id="body">
+    <input type="text" id="player-name" placeholder="Name?">
+    <canvas id="canvas1"></canvas>
+    <script>
+        var savedName = localStorage.getItem("_playerName_");
+        var playerNameElement = document.getElementById("player-name")
+        if (savedName) {
+            playerNameElement.value = savedName
+        }
+
+        function sketchProc(processing) {
+            var playerName = playerNameElement.value;
+            if (playerName) {
+                localStorage.setItem("_playerName_", playerName)
+            }
+            playerNameElement.parentNode.removeChild(playerNameElement)
+
+            var engine = window.Engine.initialize(processing, playerName || chance.first())
+
+            var conn = new WebSocket("ws://" + document.location.host + "/ws");
+            conn.onclose = function (evt) {
+                engine.onSocketClose(evt)
+            };
+            conn.onopen = function(evt) {
+                engine.setClient(conn)
+                engine.onSocketOpen(evt)
+            }
+            conn.onmessage = function (evt) {
+                engine.onSocketMessage(evt)
+            }
+
+            document.getElementById("canvas1").focus()
+            processing.draw = function() {
+                engine.update()
+            }
+        }
+        playerNameElement.focus();
+        playerNameElement.addEventListener("keyup", function(event) {
+            event.preventDefault();
+            if (event.keyCode == 13) {
+                var canvas = document.getElementById("canvas1")
+                var p = new Processing(canvas, sketchProc)
+            }
+        });
+
+
+    </script>
+</body>
+</html>

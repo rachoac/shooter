@@ -16,6 +16,10 @@ class Map<T> {
         return key in this.items;
     }
 
+    remove(key: string) {
+        delete this.items[key]
+    }
+
     get(key: string): T {
         return this.items[key];
     }
@@ -23,13 +27,15 @@ class Map<T> {
 
 export default  class TilesContainer {
     tiles: Tile[]
+    tilesByID: Map<Tile>
     tilesByRole: Map<Tile[]>
 
     constructor() {
         this.restart()
     }
     addTile(tile: Tile) {
-        this.tiles.push(tile);
+        this.tiles.push(tile)
+        this.tilesByID.add(String(tile.id), tile)
         if (tile.role) {
             let tiles = this.tilesByRole.get(tile.role);
             if (!tiles) {
@@ -60,15 +66,19 @@ export default  class TilesContainer {
         return this.tiles
     }
 
+    getTileByID(id: number): Tile {
+        return this.tilesByID.get(String(id))
+    }
+
     collisionAt(targetTile: Entity, x: number, y: number): { tile?: Tile } {
         let tiles = this.tiles;
         for (let i = 0; i < tiles.length; i++) {
             let tile = tiles[i];
             if (!tile.collideable()) {
-                continue;
+                // continue;
             }
             if (targetTile.collisionDetector(x, y, tile)) {
-                return { tile };
+                // return { tile };
             }
         }
 
@@ -86,7 +96,8 @@ export default  class TilesContainer {
         typeTiles = typeTiles.filter( function(t) {
             return t.id !== tile.id;
         });
-        this.tilesByRole.add(tile.role, typeTiles);
+        this.tilesByRole.add(tile.role, typeTiles)
+        this.tilesByID.remove(String(tile.id))
     }
 
     getTilesByRole(entityRole: string): Tile[] {
@@ -95,6 +106,7 @@ export default  class TilesContainer {
 
     restart() {
         this.tiles = []
+        this.tilesByID = new  Map<Tile>()
         this.tilesByRole = new Map<Tile[]>()
     }
 }

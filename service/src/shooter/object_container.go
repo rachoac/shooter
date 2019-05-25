@@ -45,6 +45,8 @@ type Object struct {
 	Damage            int64
 }
 
+var emptyMap cm.ConcurrentMap = cm.New()
+
 func (o *Object) GetBounds() *Bounds {
 	if o.LastX != -1 && o.LastY != -1 && o.LastX == o.X && o.LastY == o.Y {
 		return o.Bounds
@@ -82,7 +84,7 @@ func (o *Object) CollisionDetector(x int64, y int64, other *Object) bool {
 
 type ObjectContainer struct {
 	ObjectsByID   cm.ConcurrentMap
-	ObjectsByType map[string]map[int64]*Object
+	ObjectsByType cm.ConcurrentMap
 	IDSequence    int64
 	S             sync.RWMutex
 }
@@ -90,7 +92,7 @@ type ObjectContainer struct {
 func NewObjectContainer() *ObjectContainer {
 	container := ObjectContainer{}
 	container.ObjectsByID = cm.New()
-	container.ObjectsByType = make(map[string]map[int64]*Object)
+	container.ObjectsByType = cm.New()
 	container.IDSequence = 100000
 
 	return &container
@@ -120,20 +122,22 @@ func (oc *ObjectContainer) WriteObject(object *Object) {
 
 	// index by type
 	{
-		peers := oc.ObjectsByType[object.Type]
-		if peers == nil {
-			peers = make(map[int64]*Object)
-			oc.ObjectsByType[object.Type] = peers
+		peers, success := oc.ObjectsByType.Get(object.Type)
+		if peers == nil || !success {
+			peers = cm.New()
+			oc.ObjectsByType.Set(object.Type, peers)
 		}
-		peers[object.ID] = object
+		peers.(cm.ConcurrentMap).Set(Int64ToString(object.ID), object)
 	}
 }
 
 func (oc *ObjectContainer) DeleteObject(object *Object) {
 	// index by type
 	{
-		peers := oc.ObjectsByType[object.Type]
-		delete(peers, object.ID)
+		peers, success := oc.ObjectsByType.Get(object.Type)
+		if success {
+			peers.(cm.ConcurrentMap).Remove(Int64ToString(object.ID))
+		}
 	}
 
 	// index by ID
@@ -143,7 +147,7 @@ func (oc *ObjectContainer) DeleteObject(object *Object) {
 
 func (oc *ObjectContainer) DeleteAll() {
 	oc.ObjectsByID = cm.New()
-	oc.ObjectsByType = make(map[string]map[int64]*Object)
+	oc.ObjectsByType = cm.New()
 }
 
 func (oc *ObjectContainer) GetObject(objectID int64) *Object {
@@ -154,8 +158,22 @@ func (oc *ObjectContainer) GetObject(objectID int64) *Object {
 	return obj.(*Object)
 }
 
-func (oc *ObjectContainer) GetObjectsByType(objectType string) map[int64]*Object {
-	return oc.ObjectsByType[objectType]
+func (oc *ObjectContainer) GetObjectsByType(objectType string) cm.ConcurrentMap {
+	m, success := oc.ObjectsByType.Get(objectType)
+	if !success {
+		return emptyMap
+	}
+
+	return m.(cm.ConcurrentMap)
+}
+
+func (oc *ObjectContainer) CountObjectsByType(objectType string) int {
+	m, success := oc.ObjectsByType.Get(objectType)
+	if !success {
+		return 0
+	}
+
+	return m.(cm.ConcurrentMap).Count()
 }
 
 func (oc *ObjectContainer) CollisionAt(targetObject *Object, x int64, y int64) *Object {

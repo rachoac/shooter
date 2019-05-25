@@ -1,25 +1,27 @@
 package main
 
 import (
-	"time"
 	"strings"
 	"sync"
+	"time"
+
 	log "github.com/Sirupsen/logrus"
+	cm "github.com/orcaman/concurrent-map"
 )
 
 type Engine struct {
-	Width int64
-	Height int64
-	TreeCount int64
-	ZombieCount int64
-	HighScore int64
+	Width           int64
+	Height          int64
+	TreeCount       int64
+	ZombieCount     int64
+	HighScore       int64
 	HighScoreHolder string
 
 	ProtocolHandler *ProtocolHandler
 	ObjectContainer *ObjectContainer
-	ObjectFactory *ObjectFactory
-	Running bool
-	Tick int64
+	ObjectFactory   *ObjectFactory
+	Running         bool
+	Tick            int64
 
 	eventStream chan []byte
 
@@ -53,7 +55,7 @@ func (e *Engine) attackPlayer(player *Object, attacker *Object) {
 	e.broadcastExplosion(player.X, player.Y, RandomNumber(40, 60))
 	e.broadcastPlayerAttributes(player)
 
-	if  player.HP < 1 {
+	if player.HP < 1 {
 		// killed
 		e.broadcastPlayedKilled(player)
 		e.removeAndBroadcast(player)
@@ -102,9 +104,13 @@ func (e *Engine) sendWorld(playerID int64) {
 	e.sendToPlayer(playerID, e.ProtocolHandler.asHighScore(e.HighScore, e.HighScoreHolder))
 
 	// annouce new player to other players
-	for _, player := range e.ObjectContainer.GetObjectsByType("Player") {
-		if player.ID != playerID {
-			e.sendToPlayer(player.ID, e.ProtocolHandler.asNew(newPlayer))
+	players := e.ObjectContainer.GetObjectsByType("Player")
+	if !players.IsEmpty() {
+		for obj := range players.Iter() {
+			player := obj.Val.(*Object)
+			if player.ID != playerID {
+				e.sendToPlayer(player.ID, e.ProtocolHandler.asNew(newPlayer))
+			}
 		}
 	}
 }
@@ -119,11 +125,15 @@ func (e *Engine) broadcastExplosion(x int64, y int64, height int64) {
 
 func (e *Engine) RemovePlayer(playerID int64) {
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
-	for _, zombie := range zombies {
-		if zombie.TargetObjectID == playerID {
-			zombie.TargetObjectID = 0
+	if !zombies.IsEmpty() {
+		for obj := range zombies.Iter() {
+			zombie := obj.Val.(*Object)
+			if zombie.TargetObjectID == playerID {
+				zombie.TargetObjectID = 0
+			}
 		}
 	}
+
 	player := e.ObjectContainer.GetObject(playerID)
 	if player != nil {
 		e.removeAndBroadcast(player)
@@ -137,10 +147,14 @@ func (e *Engine) removeAndBroadcast(object *Object) {
 
 func (e *Engine) TickleBullets() {
 	bullets := e.ObjectContainer.GetObjectsByType("Bullet")
+	if bullets.IsEmpty() {
+		return
+	}
 
 	var wg sync.WaitGroup
 
-	for _, bullet := range bullets {
+	for obj := range bullets.Iter() {
+		bullet := obj.Val.(*Object)
 		wg.Add(1)
 		go func(bullet *Object) {
 			defer wg.Done()
@@ -187,10 +201,14 @@ func (e *Engine) explodeBomb(bomb *Object) {
 
 func (e *Engine) TickleExplosions() {
 	explosions := e.ObjectContainer.GetObjectsByType("Explosion")
+	if explosions.IsEmpty() {
+		return
+	}
 
 	var wg sync.WaitGroup
 	maxExplosionDuration := int64(30)
-	for _, explosion := range explosions {
+	for obj := range explosions.Iter() {
+		explosion := obj.Val.(*Object)
 		wg.Add(1)
 		go func(explosion *Object) {
 			defer wg.Done()
@@ -213,15 +231,20 @@ func (e *Engine) TickleExplosions() {
 
 func (e *Engine) TickleBombs() {
 	bullets := e.ObjectContainer.GetObjectsByType("Bomb")
+	if bullets.IsEmpty() {
+		return
+	}
 
 	var wg sync.WaitGroup
 	toRemove := []*Object{}
-	for _, bomb := range bullets {
+	for obj := range bullets.Iter() {
+		bomb := obj.Val.(*Object)
+
 		wg.Add(1)
 		go func(bomb *Object) {
 			defer wg.Done()
 
-			if e.Tick - bomb.CreationTick > bomb.Speed {
+			if e.Tick-bomb.CreationTick > bomb.Speed {
 				// timeout -- blow up
 				e.explodeBomb(bomb)
 				toRemove = append(toRemove, bomb)
@@ -269,16 +292,21 @@ func (e *Engine) calcAdjustedPosition(object *Object, x int64, y int64) (int64, 
 
 func (e *Engine) TicklePlayers() {
 	players := e.ObjectContainer.GetObjectsByType("Player")
+	if players.IsEmpty() {
+		return
+	}
 
 	var wg sync.WaitGroup
 
-	for _, player := range players {
+	for obj := range players.Iter() {
+		player := obj.Val.(*Object)
+
 		wg.Add(1)
 		go func(player *Object) {
 			defer wg.Done()
 
 			// replenish hp
-			if e.Tick - player.LastHealTick > 400 {
+			if e.Tick-player.LastHealTick > 400 {
 				// heal periodically
 				if player.HP < player.MaxHP {
 					player.HP += 1
@@ -288,7 +316,7 @@ func (e *Engine) TicklePlayers() {
 			}
 
 			// replenish bullets
-			if e.Tick - player.LastBulletTick > 10 {
+			if e.Tick-player.LastBulletTick > 10 {
 				// add bullets periodically
 				if player.Bullets < player.MaxBullets {
 					player.Bullets += 1
@@ -326,11 +354,11 @@ func (e *Engine) TicklePlayers() {
 	wg.Wait()
 }
 
-func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
+func (e *Engine) processZombie(zombie *Object, playerCount int, players cm.ConcurrentMap) {
 	if zombie == nil {
 		return
 	}
-	if len(players) < 1 {
+	if playerCount < 1 {
 		zombie.TargetObjectID = 0
 		return
 	}
@@ -340,30 +368,37 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 	zombieTarget := e.ObjectContainer.GetObject(zombie.TargetObjectID)
 	if zombieTarget != nil {
 		distance1 := Distance(zombie.X, zombie.Y, zombieTarget.X, zombieTarget.Y)
-		for _, player := range players {
-			// see if anyone else is closer
-			distance2 := Distance(zombie.X, zombie.Y, player.X, player.Y)
-			if distance2 < distance1 {
-				// other player is closer, its now the target
-				closest = player
-				break;
+		if !players.IsEmpty() {
+			for obj := range players.Iter() {
+				player := obj.Val.(*Object)
+				// see if anyone else is closer
+				distance2 := Distance(zombie.X, zombie.Y, player.X, player.Y)
+				if distance2 < distance1 {
+					// other player is closer, its now the target
+					closest = player
+					break
+				}
 			}
-		}
-		if closest == nil {
-			// current target is still closest
-			closest = zombieTarget
+			if closest == nil {
+				// current target is still closest
+				closest = zombieTarget
+			}
 		}
 	} else {
 		// zombie has no target; acquire a new one
 		closestDistance := float64(-1)
-		for _, player := range players {
-			var distance float64
-			if closest != nil {
-				distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
-			}
-			if closest == nil || distance < closestDistance {
-				closest = player
-				closestDistance = distance
+		if !players.IsEmpty() {
+			for obj := range players.Iter() {
+				player := obj.Val.(*Object)
+
+				var distance float64
+				if closest != nil {
+					distance = Distance(zombie.X, zombie.Y, closest.X, closest.Y)
+				}
+				if closest == nil || distance < closestDistance {
+					closest = player
+					closestDistance = distance
+				}
 			}
 		}
 	}
@@ -390,7 +425,7 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 		y -= zombie.Speed
 	}
 
-	outOfBounds := zombie.X < -15 || zombie.Y < -15 || zombie.Y > e.Height + 15 || zombie.X > e.Width + 15
+	outOfBounds := zombie.X < -15 || zombie.Y < -15 || zombie.Y > e.Height+15 || zombie.X > e.Width+15
 	collisionObject := e.ObjectContainer.CollisionAt(zombie, x, y)
 	if outOfBounds || collisionObject == nil || !collisionObject.Blocking {
 		if zombie.X != x || zombie.Y != y {
@@ -404,7 +439,7 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 	i := Distance(zombie.X, zombie.Y, closest.X, closest.Y)
 	if i < 20 {
 		// we're close enough for an attack
-		if e.Tick == 0 || e.Tick - zombie.LastAttackTick > int64(float64(80)/float64(zombie.Speed)) {
+		if e.Tick == 0 || e.Tick-zombie.LastAttackTick > int64(float64(80)/float64(zombie.Speed)) {
 			// enough time has elapsed since the last attack
 			zombie.LastAttackTick = e.Tick
 
@@ -416,15 +451,21 @@ func (e *Engine) processZombie(zombie *Object, players map[int64]*Object) {
 
 func (e *Engine) TickleZombies() {
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
+	if zombies.IsEmpty() {
+		return
+	}
 	players := e.ObjectContainer.GetObjectsByType("Player")
+	playerCount := e.ObjectContainer.CountObjectsByType("Player")
 
 	var wg sync.WaitGroup
 
-	for _, zombie := range zombies {
+	for obj := range zombies.Iter() {
+		zombie := obj.Val.(*Object)
+
 		wg.Add(1)
 		go func(zombie *Object) {
 			defer wg.Done()
-			e.processZombie(zombie, players)
+			e.processZombie(zombie, playerCount, players)
 
 		}(zombie)
 	}
@@ -435,7 +476,12 @@ func (e *Engine) TickleZombies() {
 func (e *Engine) logState() {
 	log.Info("--------------------------------")
 	zombies := e.ObjectContainer.GetObjectsByType("Zombie")
-	for _, zombie := range zombies {
+	if zombies.IsEmpty() {
+		return
+	}
+	for obj := range zombies.Iter() {
+		zombie := obj.Val.(*Object)
+
 		log.Info("zombie ", zombie.ID, " [", zombie.X, ", ", zombie.Y, "]; targetID: ", zombie.TargetObjectID)
 	}
 }
@@ -443,7 +489,7 @@ func (e *Engine) logState() {
 func (e *Engine) MainLoop() {
 	lastCount := 0
 	for e.Running {
-		e.Tick += 1
+		e.Tick++
 
 		// wrap back around
 		if e.Tick > 9223372036854775805 {
@@ -474,11 +520,11 @@ func (e *Engine) MainLoop() {
 		}()
 		wg.Wait()
 
-		zombies := e.ObjectContainer.GetObjectsByType("Zombie")
-		if e.Tick % 60 == 0 {
+		zombiesCount := e.ObjectContainer.CountObjectsByType("Zombie")
+		if e.Tick%60 == 0 {
 			//e.logState()
-			if lastCount != len(zombies) {
-				lastCount = len(zombies)
+			if lastCount != zombiesCount {
+				lastCount = zombiesCount
 				log.Info("Zombie count ", lastCount)
 			}
 			if lastCount < 25 {
@@ -493,8 +539,8 @@ func (e *Engine) MainLoop() {
 			}
 		}
 
-		if e.Tick % 350 == 0 {
-			WriteStringToFile(Int64ToString(e.HighScore) + ":" + e.HighScoreHolder, "score.txt")
+		if e.Tick%350 == 0 {
+			WriteStringToFile(Int64ToString(e.HighScore)+":"+e.HighScoreHolder, "score.txt")
 		}
 
 		// sleep for an interval
@@ -507,86 +553,91 @@ func (e *Engine) parseEvent(event string) {
 	command := parts[0]
 
 	switch command {
-	case "P": {
-		playerID :=  StringToInt64(parts[1])
-		x :=  StringToInt64(parts[2])
-		y :=  StringToInt64(parts[3])
-		object := e.ObjectContainer.GetObject(playerID)
+	case "P":
+		{
+			playerID := StringToInt64(parts[1])
+			x := StringToInt64(parts[2])
+			y := StringToInt64(parts[3])
+			object := e.ObjectContainer.GetObject(playerID)
 
-		if object != nil {
-			if e.ObjectContainer.CollisionAt(object, x, y) == nil {
-				object.X = x
-				object.Y = y
-				e.broadcastMove(object)
+			if object != nil {
+				if e.ObjectContainer.CollisionAt(object, x, y) == nil {
+					object.X = x
+					object.Y = y
+					e.broadcastMove(object)
+				}
 			}
 		}
-	}
-	case "I": {
-		playerID :=  StringToInt64(parts[1])
-		name :=  parts[2]
-		object := e.ObjectContainer.GetObject(playerID)
+	case "I":
+		{
+			playerID := StringToInt64(parts[1])
+			name := parts[2]
+			object := e.ObjectContainer.GetObject(playerID)
 
-		if object != nil {
-			object.Name = name
+			if object != nil {
+				object.Name = name
+			}
+			e.sendWorld(playerID)
 		}
-		e.sendWorld(playerID)
-	}
-	case "F": {
-		// fire a bullet from x,y -> x2,y2 ... if you have enough bullets
-		ownerID :=  StringToInt64(parts[6])
-		owner := e.ObjectContainer.GetObject(ownerID)
-		if owner != nil && owner.Bullets - 1 > 0 {
-			x :=  StringToInt64(parts[1])
-			y :=  StringToInt64(parts[2])
-			x2 :=  StringToInt64(parts[3])
-			y2 :=  StringToInt64(parts[4])
-			speed :=  StringToInt64(parts[5])
+	case "F":
+		{
+			// fire a bullet from x,y -> x2,y2 ... if you have enough bullets
+			ownerID := StringToInt64(parts[6])
+			owner := e.ObjectContainer.GetObject(ownerID)
+			if owner != nil && owner.Bullets-1 > 0 {
+				x := StringToInt64(parts[1])
+				y := StringToInt64(parts[2])
+				x2 := StringToInt64(parts[3])
+				y2 := StringToInt64(parts[4])
+				speed := StringToInt64(parts[5])
 
-			object := e.ObjectFactory.CreateBullet(x, y, speed)
+				object := e.ObjectFactory.CreateBullet(x, y, speed)
 
-			object.TargetX = x2
-			object.TargetY = y2
-			object.OriginID = ownerID
-			e.ObjectContainer.WriteObject(object)
+				object.TargetX = x2
+				object.TargetY = y2
+				object.OriginID = ownerID
+				e.ObjectContainer.WriteObject(object)
 
-			// announce the bullet
-			e.broadcast(e.ProtocolHandler.asNew(object))
+				// announce the bullet
+				e.broadcast(e.ProtocolHandler.asNew(object))
 
-			owner.Bullets -= 1
-			e.broadcastPlayerAttributes(owner)
+				owner.Bullets -= 1
+				e.broadcastPlayerAttributes(owner)
+			}
 		}
-	}
-	case "B": {
-		// drop a bomb at player location
-		ownerID :=  StringToInt64(parts[1])
-		owner := e.ObjectContainer.GetObject(ownerID)
-		if owner != nil && owner.Bombs - 1 >= 0 {
-			object := e.ObjectFactory.CreateBomb(owner.X, owner.Y - 25, 100)
-			object.CreationTick = e.Tick
-			object.OriginID = ownerID
+	case "B":
+		{
+			// drop a bomb at player location
+			ownerID := StringToInt64(parts[1])
+			owner := e.ObjectContainer.GetObject(ownerID)
+			if owner != nil && owner.Bombs-1 >= 0 {
+				object := e.ObjectFactory.CreateBomb(owner.X, owner.Y-25, 100)
+				object.CreationTick = e.Tick
+				object.OriginID = ownerID
 
-			e.ObjectContainer.WriteObject(object)
+				e.ObjectContainer.WriteObject(object)
 
-			// announce the bomb
-			e.broadcast(e.ProtocolHandler.asNew(object))
+				// announce the bomb
+				e.broadcast(e.ProtocolHandler.asNew(object))
 
-			owner.Bombs -= 1
-			e.broadcastPlayerAttributes(owner)
+				owner.Bombs -= 1
+				e.broadcastPlayerAttributes(owner)
+			}
 		}
-	}
-	case "T": {
-		// move player target to x,y
-		playerID :=  StringToInt64(parts[1])
-		x :=  StringToInt64(parts[2])
-		y :=  StringToInt64(parts[3])
+	case "T":
+		{
+			// move player target to x,y
+			playerID := StringToInt64(parts[1])
+			x := StringToInt64(parts[2])
+			y := StringToInt64(parts[3])
 
-		object := e.ObjectContainer.GetObject(playerID)
-		if object != nil {
-			object.TargetX = x
-			object.TargetY = y
+			object := e.ObjectContainer.GetObject(playerID)
+			if object != nil {
+				object.TargetX = x
+				object.TargetY = y
+			}
 		}
-	}
-		default:
+	default:
 		// nothing
 	}
 }
@@ -594,7 +645,7 @@ func (e *Engine) parseEvent(event string) {
 func (e *Engine) ListenToEvents() {
 	// forever listen
 	for e.Running {
-		event := <- e.eventStream
+		event := <-e.eventStream
 		eventStr := string(event)
 		//log.Info("Received [", eventStr, "]")
 		e.parseEvent(eventStr)

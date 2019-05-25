@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"runtime"
 )
 
 var addr = flag.String("addr", ":8080", "http service address")
@@ -24,6 +25,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	runtime.GOMAXPROCS(4)
+
 	flag.Parse()
 	engine := NewEngine(1000, 800, 30, 10)
 	engine.Initialize()

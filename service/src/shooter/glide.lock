@@ -5,4 +5,6 @@ imports:
   version: 4873052237e4eeda85cf50c071ef33836fe8e139
 - name: github.com/Sirupsen/logrus
   version: 0208149b40d863d2c1a2f8fe5753096a9cf2cc8b
+- name: github.com/orcaman/concurrent-map
+  version: 2693aad1ed7517c2bb5b3a42cb8fde88b941d89d
 devImports: []

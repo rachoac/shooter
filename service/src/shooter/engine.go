@@ -93,8 +93,8 @@ func (e *Engine) broadcastObject(object *Object) {
 }
 
 func (e *Engine) sendWorld(playerID int64) {
-	for _, object := range e.ObjectContainer.ObjectsByID {
-		e.sendToPlayer(playerID, e.ProtocolHandler.asNew(object))
+	for object := range e.ObjectContainer.ObjectsByID.Iter() {
+		e.sendToPlayer(playerID, e.ProtocolHandler.asNew(object.Val.(*Object)))
 	}
 
 	newPlayer := e.ObjectContainer.GetObject(playerID)

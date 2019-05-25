@@ -1,0 +1,11 @@
+service/src/shooter/vendor
+target/node_modules
+client/node_modules
+client/package-lock.json
+client/public/
+service/src/shooter/shooter
+target/
+service/bin/
+service/pkg/
+service/src/github.com/
+service/src/golang.org/

@@ -1,5 +1,5 @@
 package: github.com/rachoac/shooter
 import:
-- package: github.com/Sirupsen/logrus
+- package: github.com/sirupsen/logrus
 - package: github.com/gorilla/websocket
 - package: github.com/orcaman/concurrent-map

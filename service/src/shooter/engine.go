@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
 	cm "github.com/orcaman/concurrent-map"
+	log "github.com/sirupsen/logrus"
 )
 
 type Engine struct {
